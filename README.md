@@ -9,7 +9,7 @@
 <br/>
 
 <div align="center">
-  <a href="https://github.com/NotaBeen/NotaBeen/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/NotaBeen/NotaBeen"></a>
+  <a href="https://github.com/NotaBeen/notabeen-ai-email-assistant/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/NotaBeen/notabeen-ai-email-assistant"></a>
   <a href="https://github.com/NotaBeen/NotaBeen/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-purple"></a>
 </div>
 
@@ -43,7 +43,7 @@ Here's what you need to run NotaBeen:
 ### 1. Clone the repository
 
 ```shell
-git clone [https://github.com/NotaBeen/NotaBeen.git](https://github.com/NotaBeen/NotaBeen.git)
+git clone [https://github.com/NotaBeen/notabeen-ai-email-assistant.git](https://github.com/NotaBeen/notabeen-ai-email-assistant.git)
 cd NotaBeen
 ```
 
@@ -114,11 +114,11 @@ Visit [http://localhost:3000](http://localhost:3000) in your browser.
 We <3 contributions big and small:
 
 - Open a PR to fix a bug or add a new feature.
-- Submit a [feature request](https://github.com/NotaBeen/NotaBeen/issues/new?assignees=&labels=enhancement%2C+feature&template=feature_request.md) or [bug report](https://github.com/NotaBeen/NotaBeen/issues/new?assignees=&labels=bug&template=bug_report.md).
+- Submit a [feature request](https://github.com/NotaBeen/notabeen-ai-email-assistant/issues/new?assignees=&labels=enhancement%2C+feature&template=feature_request.md) or [bug report](https://github.com/NotaBeen/notabeen-ai-email-assistant/issues/new?assignees=&labels=bug&template=bug_report.md).
 - Vote on features or get early access to beta functionality in our roadmap.
 
 ---
 
 ## Open-source vs. paid
 
-This repo is available under the [MIT expat license](https://github.com/NotaBeen/NotaBeen/blob/main/LICENSE).
+This repo is available under the [MIT expat license](https://github.com/NotaBeen/notabeen-ai-email-assistant/blob/main/LICENSE).

@@ -11,7 +11,6 @@ import {
 } from "@mui/material";
 import React from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import LinkedInIcon from "@mui/icons-material/LinkedIn";
 
 export default function FAQ() {
   const faqs = [
@@ -133,7 +132,7 @@ export default function FAQ() {
           <Button
             variant="contained"
             component="a"
-            href="https://www.linkedin.com/company/105343173/admin/dashboard/"
+            href="https://github.com/NotaBeen/notabeen-ai-email-assistant"
             target="_blank"
             rel="noopener noreferrer"
             sx={{
@@ -147,7 +146,6 @@ export default function FAQ() {
               "&:hover": { bgcolor: "primary.dark" },
             }}
           >
-            <LinkedInIcon sx={{ fontSize: 20, mr: 1 }} />
             <span>Join our Community</span>
           </Button>
         </Box>

@@ -103,7 +103,7 @@ function FinalCTA() {
               width: { xs: "90%", sm: "auto" },
               borderRadius: 2,
             }}
-            href="https://github.com/NotaBeen/NotaBeen"
+            href="https://github.com/NotaBeen/notabeen-ai-email-assistant"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => handleButtonClick("open_source_cta_click")}

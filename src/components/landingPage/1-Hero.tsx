@@ -112,7 +112,7 @@ function Hero() {
               borderRadius: 2,
             }}
             component={Link}
-            href="https://github.com/NotaBeen/NotaBeen"
+            href="https://github.com/NotaBeen/notabeen-ai-email-assistant"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => handleButtonClick("open_source_cta_click")}

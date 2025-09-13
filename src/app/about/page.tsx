@@ -211,7 +211,7 @@ export default function AboutPage() {
             leading open-source solution for the modern web.
           </Typography>
           <Button
-            href="https://github.com/notabeen/Notabeen"
+            href="https://github.com/NotaBeen/notabeen-ai-email-assistant"
             variant="contained"
             size="large"
             sx={{
