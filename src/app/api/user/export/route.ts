@@ -5,59 +5,27 @@ import { NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
 import crypto from "crypto";
 
-const ALGORITHM = "aes-256-gcm";
-if (!process.env.ENCRYPTION_KEY) {
-  throw new Error("ENCRYPTION_KEY is not defined");
-}
-if (!process.env.ENCRYPTION_IV) {
-  throw new Error("ENCRYPTION_IV is not defined");
-}
-const SECRET_KEY = process.env.ENCRYPTION_KEY; // Must be 32 bytes
-const IV = process.env.ENCRYPTION_IV; // Must be 12 bytes for GCM
-
-// IMPORTANT: Ensure SECRET_KEY and IV are correctly loaded and are of correct length
-if (SECRET_KEY.length !== 32) {
-  throw new Error("ENCRYPTION_KEY must be 32 bytes.");
-}
-if (IV.length !== 12) {
-  throw new Error("ENCRYPTION_IV must be 12 bytes for AES-GCM.");
-}
-
-if (!process.env.MONGODB_URI) {
-  throw new Error("MONGODB_URI is not defined.");
-}
-
-const client = new MongoClient(process.env.MONGODB_URI);
-const clientPromise = client.connect();
-const collectionName = process.env.MONGO_CLIENT ?? "";
-
-// Define interface for Settings
+// Define interfaces for data structures
 interface UserSettings {
-  theme: "light" | "dark"; // Assuming these are the only options
+  theme: "light" | "dark";
   language: string;
   notifications_enabled: boolean;
 }
 
-// Define interface for Subscription
 interface UserSubscription {
   paid: boolean;
-  start_date: Date; // Matches database field name
+  start_date: Date;
 }
 
-// Define the User document structure from MongoDB
-// This interface represents the data as it's stored in your MongoDB collection,
-// including the encrypted fields and their authTags.
 interface UserDocument {
-  _id: ObjectId; // MongoDB's default ID
+  _id: ObjectId;
   sub: string;
   email?: string;
-  emailAuthTag?: string; // Auth tag for email decryption
-  emailIV?: string; // IV for email decryption (though you're using a global IV)
+  emailAuthTag?: string;
   name?: string;
-  nameAuthTag?: string; // Auth tag for name decryption
-  nameIV?: string; // IV for name decryption (though you're using a global IV)
-  settings?: UserSettings; // Use the specific UserSettings interface
-  subscription?: UserSubscription; // Use the specific UserSubscription interface
+  nameAuthTag?: string;
+  settings?: UserSettings;
+  subscription?: UserSubscription;
   total_emails_analyzed?: number;
   cookie_acceptance?: boolean;
   cookie_acceptance_date?: Date | null;
@@ -68,13 +36,11 @@ interface UserDocument {
   roles?: string[];
 }
 
-// Define the structure of the decrypted user data that will be exported
-// This interface represents the data *after* decryption and removal of sensitive fields.
 interface DecryptedUserData {
   sub: string;
   email?: string;
   name?: string;
-  subscription?: Omit<UserSubscription, "payment_method">; // Omit payment_method if not to be exported
+  subscription?: UserSubscription;
   total_emails_analyzed?: number;
   cookie_acceptance?: boolean;
   cookie_acceptance_date?: Date | null;
@@ -84,12 +50,14 @@ interface DecryptedUserData {
   last_login?: Date;
 }
 
-// Decryption function - now uses the global IV, consistent with src/app/api/user/route.ts
-function decrypt(encryptedData: string, authTag: string): string {
-  const iv = Buffer.from(IV, "utf-8"); // Use the global IV
-  const secretKey = Buffer.from(SECRET_KEY, "utf-8"); // Ensure secretKey is a Buffer
-
-  const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv);
+// Decryption function
+function decrypt(
+  encryptedData: string,
+  authTag: string,
+  secretKey: Buffer,
+  iv: Buffer,
+): string {
+  const decipher = crypto.createDecipheriv("aes-256-gcm", secretKey, iv);
   decipher.setAuthTag(Buffer.from(authTag, "hex"));
 
   let decrypted = decipher.update(encryptedData, "hex", "utf8");
@@ -97,40 +65,76 @@ function decrypt(encryptedData: string, authTag: string): string {
   return decrypted;
 }
 
+/**
+ * Handles GET requests to export user data for GDPR compliance.
+ *
+ * This endpoint verifies the user's session, fetches their data from MongoDB,
+ * decrypts sensitive fields, and returns a comprehensive JSON object
+ * including the user's data and GDPR-related information.
+ */
 export async function GET() {
+  // Check for required environment variables inside the handler
+  const MONGODB_URI = process.env.MONGODB_URI;
+  const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+  const ENCRYPTION_IV = process.env.ENCRYPTION_IV;
+  const collectionName = process.env.MONGO_CLIENT ?? "";
+
+  if (!MONGODB_URI || !ENCRYPTION_KEY || !ENCRYPTION_IV) {
+    return NextResponse.json(
+      {
+        message:
+          "Server configuration error: Required environment variables are not defined",
+      },
+      { status: 500 },
+    );
+  }
+
+  // Ensure keys are of correct length
+  if (ENCRYPTION_KEY.length !== 32 || ENCRYPTION_IV.length !== 12) {
+    return NextResponse.json(
+      {
+        message:
+          "Server configuration error: Invalid encryption key or IV length",
+      },
+      { status: 500 },
+    );
+  }
+
+  // Convert keys to buffers for decryption
+  const SECRET_KEY = Buffer.from(ENCRYPTION_KEY, "utf-8");
+  const IV = Buffer.from(ENCRYPTION_IV, "utf-8");
+
   try {
+    // Session and Authorization Check
     const session = await auth0.getSession();
     if (!session || !session.user?.sub) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const db = (await clientPromise).db(collectionName);
-    const collection = db.collection<UserDocument>("user"); // Specify UserDocument type for the collection
-
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    const db = client.db(collectionName);
+    const collection = db.collection<UserDocument>("user");
     const sub = session.user.sub;
     const user = await collection.findOne({ sub });
+    await client.close();
 
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Construct decryptedUserData by picking and transforming fields as needed
+    // Decrypt sensitive data and construct the final response object
     const decryptedUserData: DecryptedUserData = {
       sub: user.sub,
       email:
         user.email && user.emailAuthTag
-          ? decrypt(user.email, user.emailAuthTag)
+          ? decrypt(user.email, user.emailAuthTag, SECRET_KEY, IV)
           : user.email,
       name:
         user.name && user.nameAuthTag
-          ? decrypt(user.name, user.nameAuthTag)
+          ? decrypt(user.name, user.nameAuthTag, SECRET_KEY, IV)
           : user.name,
-      subscription: user.subscription
-        ? {
-            paid: user.subscription.paid,
-            start_date: user.subscription.start_date,
-          }
-        : undefined,
+      subscription: user.subscription,
       total_emails_analyzed: user.total_emails_analyzed,
       cookie_acceptance: user.cookie_acceptance,
       cookie_acceptance_date: user.cookie_acceptance_date,
