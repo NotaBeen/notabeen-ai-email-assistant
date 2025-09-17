@@ -122,3 +122,4 @@ We <3 contributions big and small:
 ## Open-source vs. paid
 
 This repo is available under the [MIT expat license](https://github.com/NotaBeen/notabeen-ai-email-assistant/blob/main/LICENSE).
+
