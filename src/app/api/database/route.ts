@@ -1,17 +1,25 @@
 // src/app/api/database/route.ts
 
+/**
+ * @fileoverview This API route provides a simple health check to ensure the
+ * database connection is working correctly. It is a GET request handler
+ * for the '/api/database' endpoint.
+ */
+
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 
-// Note: You must set the MONGODB_URI environment variable
-// in your project's .env file.
-const uri = process.env.MONGODB_URI;
+/**
+ * Handles GET requests to the database health check endpoint.
+ * It verifies the existence of the MONGODB_URI environment variable
+ * and attempts to establish a connection to the database.
+ * @returns {Promise<NextResponse>} A JSON response indicating the
+ * database connection status.
+ */
+export async function GET(): Promise<NextResponse> {
+  const uri = process.env.MONGODB_URI;
 
-// This API route provides a simple health check to ensure the
-// database connection is working.
-export async function GET() {
-  // Always validate that your environment variables are set
-  // to avoid runtime errors.
+  // Return an error if the required environment variable is not defined.
   if (!uri) {
     return NextResponse.json(
       { message: "Server configuration error: MONGODB_URI not defined" },
@@ -23,11 +31,10 @@ export async function GET() {
     const client = new MongoClient(uri);
     await client.connect();
 
-    // The connection is successful.
     return NextResponse.json({ message: "Database connection successful" });
   } catch (error) {
-    // If an error occurs, log it internally and return a generic
-    // error message to the client.
+    // Return a generic server error for security and to prevent leaking
+    // internal details in production.
     console.error("Error connecting to MongoDB:", error);
     return NextResponse.json(
       { message: "Internal Server Error" },
