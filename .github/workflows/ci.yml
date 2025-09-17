@@ -1,0 +1,37 @@
+# .github/workflows/ci.yml
+
+name: CI
+
+# Triggers the workflow on pull request events
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+
+# A workflow is made of one or more jobs
+jobs:
+  build_and_test:
+    # Runs the job on the latest version of Ubuntu
+    runs-on: ubuntu-latest
+
+    # A sequence of tasks to be executed
+    steps:
+      # Step 1: Checks out your repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Sets up the Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      # Step 3: Installs all project dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Step 4: Runs the test suite
+      - name: Run tests
+        run: npm test
