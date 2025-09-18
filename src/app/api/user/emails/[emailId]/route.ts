@@ -1,10 +1,8 @@
+// src/app/api/user/emails/[emailId]/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
 import { auth0 } from "@/lib/auth0";
-
-const client = new MongoClient(process.env.MONGODB_URI!);
-const clientPromise = client.connect();
-const collectionName = process.env.MONGO_CLIENT ?? "";
 
 export async function PATCH(
   req: NextRequest,
@@ -23,8 +21,7 @@ export async function PATCH(
     const { userActionTaken, read } = await req.json();
 
     type UpdateFields = {
-      userActionTaken?: "Archived";
-
+      userActionTaken?: "Archived" | "No Action"; // Added "No Action" as a valid type
       read?: boolean;
     };
     const updateFields: UpdateFields = {};
@@ -58,7 +55,13 @@ export async function PATCH(
       );
     }
 
-    const clientConn = await clientPromise;
+    // --- Move DB connection inside the function ---
+    if (!process.env.MONGODB_URI) {
+      throw new Error("Server configuration error: MONGODB_URI is not defined");
+    }
+    const client = new MongoClient(process.env.MONGODB_URI);
+    const clientConn = await client.connect();
+    const collectionName = process.env.MONGO_CLIENT ?? "";
     const db = clientConn.db(collectionName);
     const collection = db.collection("emails");
 
@@ -71,6 +74,9 @@ export async function PATCH(
         $set: updateFields,
       },
     );
+
+    // Close connection after operation
+    await clientConn.close();
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ message: "Email not found" }, { status: 404 });
