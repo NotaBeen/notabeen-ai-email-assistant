@@ -2,14 +2,6 @@ import { auth0 } from "@/lib/auth0";
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("MONGODB_URI is not defined");
-}
-
-const client = new MongoClient(process.env.MONGODB_URI);
-const clientPromise = client.connect();
-const collectionName = process.env.MONGO_CLIENT ?? "";
-
 export async function POST(request: Request) {
   try {
     const session = await auth0.getSession();
@@ -20,7 +12,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { accepted, cookiePreferences } = body;
 
-    const clientConnection = await clientPromise;
+    if (!process.env.MONGODB_URI) {
+      throw new Error("Server configuration error: MONGODB_URI is not defined");
+    }
+    const client = new MongoClient(process.env.MONGODB_URI);
+    const clientConnection = await client.connect();
+    const collectionName = process.env.MONGO_CLIENT ?? "";
     const db = clientConnection.db(collectionName);
     const collection = db.collection("user");
 
@@ -39,13 +36,22 @@ export async function POST(request: Request) {
     );
 
     if (updateResult.modifiedCount === 0) {
+      const userExists = await collection.findOne({ sub });
+      if (!userExists) {
+        return NextResponse.json(
+          { message: "User not found" },
+          { status: 404 },
+        );
+      }
       return NextResponse.json(
-        { message: "User not found or already accepted terms" },
-        { status: 404 },
+        { message: "User already accepted terms" },
+        { status: 409 },
       );
     }
 
     const updatedUser = await collection.findOne({ sub });
+
+    await clientConnection.close();
 
     return NextResponse.json(updatedUser, { status: 200 });
   } catch (error) {
