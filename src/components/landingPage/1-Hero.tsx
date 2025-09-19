@@ -167,7 +167,7 @@ function Hero() {
           }}
         >
           <Image
-            src="/heroScreenshot.png"
+            src="/notabeen-welcome.gif"
             alt="NotaBeen Product Screenshot Desktop"
             width={1200}
             height={675}

@@ -23,6 +23,10 @@ NotaBeen is an open-source email assistant that uses AI to help you manage your 
 - **Automated Categorization:** Automatically sort incoming emails into categories like "Urgent," "Important," "Can Wait," "Unsubscribe," and "Unimportant" to prioritize what matters.
 - **Secure Inbox Management:** Manage your email without worrying about your data, as NotaBeen is self-hostable.
 
+## Demo
+
+![Notabeen Welcome GIF](/public/notabeen-welcome.gif)
+
 ## Tech Stack
 
 - [Next.js](https://nextjs.org/) – Framework
