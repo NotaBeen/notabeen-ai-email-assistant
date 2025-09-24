@@ -54,8 +54,7 @@ export const metadata: Metadata = {
 
 // ---
 // Root Layout Component
-// Check for PostHog environment variables
-const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
+const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 const isPostHogEnabled = POSTHOG_API_KEY && POSTHOG_HOST;
 
