@@ -17,7 +17,7 @@ const collectionName = process.env.MONGO_CLIENT ?? "";
 // Encryption function
 function encrypt(text: string) {
   const iv = Buffer.from(IV, "utf-8");
-  const secretKey = Buffer.from(SECRET_KEY, "utf-8");
+  const secretKey = Buffer.from(SECRET_KEY, "base64");
 
   const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
 
@@ -36,7 +36,7 @@ function encrypt(text: string) {
 
 function decrypt(encryptedData: string, authTag: string) {
   const iv = Buffer.from(IV, "utf-8"); // Same IV used during encryption
-  const secretKey = Buffer.from(SECRET_KEY, "utf-8");
+  const secretKey = Buffer.from(SECRET_KEY, "base64");
 
   const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv);
 
