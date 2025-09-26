@@ -3,7 +3,8 @@
 import { auth0 } from "@/lib/auth0";
 import { NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
-import crypto from "crypto";
+
+import { decryptOptional } from "@/utils/crypto";
 
 // Define interfaces for data structures
 interface UserSettings {
@@ -50,21 +51,6 @@ interface DecryptedUserData {
   last_login?: Date;
 }
 
-// Decryption function
-function decrypt(
-  encryptedData: string,
-  authTag: string,
-  secretKey: Buffer,
-  iv: Buffer,
-): string {
-  const decipher = crypto.createDecipheriv("aes-256-gcm", secretKey, iv);
-  decipher.setAuthTag(Buffer.from(authTag, "hex"));
-
-  let decrypted = decipher.update(encryptedData, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
-
 /**
  * Handles GET requests to export user data for GDPR compliance.
  *
@@ -75,39 +61,22 @@ function decrypt(
 export async function GET() {
   // Check for required environment variables inside the handler
   const MONGODB_URI = process.env.MONGODB_URI;
-  const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-  const ENCRYPTION_IV = process.env.ENCRYPTION_IV;
   const collectionName = process.env.MONGO_CLIENT ?? "";
 
-  if (!MONGODB_URI || !ENCRYPTION_KEY || !ENCRYPTION_IV) {
+  if (!MONGODB_URI) {
     return NextResponse.json(
       {
         message:
-          "Server configuration error: Required environment variables are not defined",
+          "Server configuration error: MONGODB_URI is not defined",
       },
       { status: 500 },
     );
   }
-
-  // Ensure keys are of correct length
-  if (ENCRYPTION_KEY.length !== 32 || ENCRYPTION_IV.length !== 12) {
-    return NextResponse.json(
-      {
-        message:
-          "Server configuration error: Invalid encryption key or IV length",
-      },
-      { status: 500 },
-    );
-  }
-
-  // Convert keys to buffers for decryption
-  const SECRET_KEY = Buffer.from(ENCRYPTION_KEY, "utf-8");
-  const IV = Buffer.from(ENCRYPTION_IV, "utf-8");
 
   try {
     // Session and Authorization Check
     const session = await auth0.getSession();
-    if (!session || !session.user?.sub) {
+    if (!session?.user?.sub) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -124,16 +93,13 @@ export async function GET() {
     }
 
     // Decrypt sensitive data and construct the final response object
+    const decryptedEmail = decryptOptional(user.email, user.emailAuthTag);
+    const decryptedName = decryptOptional(user.name, user.nameAuthTag);
+
     const decryptedUserData: DecryptedUserData = {
       sub: user.sub,
-      email:
-        user.email && user.emailAuthTag
-          ? decrypt(user.email, user.emailAuthTag, SECRET_KEY, IV)
-          : user.email,
-      name:
-        user.name && user.nameAuthTag
-          ? decrypt(user.name, user.nameAuthTag, SECRET_KEY, IV)
-          : user.name,
+      email: decryptedEmail ?? user.email,
+      name: decryptedName ?? user.name,
       subscription: user.subscription,
       total_emails_analyzed: user.total_emails_analyzed,
       cookie_acceptance: user.cookie_acceptance,

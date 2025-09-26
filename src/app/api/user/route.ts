@@ -1,53 +1,10 @@
 import { auth0 } from "@/lib/auth0";
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
-import crypto from "crypto";
 
-const ALGORITHM = "aes-256-gcm";
-if (!process.env.ENCRYPTION_KEY) {
-  throw new Error("ENCRYPTION_KEY is not defined");
-}
-if (!process.env.ENCRYPTION_IV) {
-  throw new Error("ENCRYPTION_IV is not defined");
-}
-const SECRET_KEY = process.env.ENCRYPTION_KEY; // Must be 32 bytes
-const IV = process.env.ENCRYPTION_IV; // Must be 12 bytes for GCM
+import { decrypt, encrypt } from "@/utils/crypto";
+
 const collectionName = process.env.MONGO_CLIENT ?? "";
-
-// Encryption function
-function encrypt(text: string) {
-  const iv = Buffer.from(IV, "utf-8");
-  const secretKey = Buffer.from(SECRET_KEY, "utf-8");
-
-  const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
-
-  // Encrypt the text
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-
-  // Get the authentication tag
-  const authTag = cipher.getAuthTag();
-
-  return {
-    encryptedData: encrypted,
-    authTag: authTag.toString("hex"), // Store this along with the encrypted data
-  };
-}
-
-function decrypt(encryptedData: string, authTag: string) {
-  const iv = Buffer.from(IV, "utf-8"); // Same IV used during encryption
-  const secretKey = Buffer.from(SECRET_KEY, "utf-8");
-
-  const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv);
-
-  // Set the authentication tag
-  decipher.setAuthTag(Buffer.from(authTag, "hex"));
-
-  let decrypted = decipher.update(encryptedData, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-
-  return decrypted;
-}
 
 // Ensure MongoDB URI is defined
 if (!process.env.MONGODB_URI) {
@@ -61,7 +18,7 @@ export async function GET() {
   try {
     const session = await auth0.getSession();
 
-    if (!session || !session.user?.sub) {
+  if (!session?.user?.sub) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -128,7 +85,7 @@ export async function PATCH(req: Request) {
   try {
     const session = await auth0.getSession();
 
-    if (!session || !session.user?.sub) {
+  if (!session?.user?.sub) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -196,7 +153,7 @@ export async function DELETE() {
   try {
     const session = await auth0.getSession();
 
-    if (!session || !session.user?.sub) {
+  if (!session?.user?.sub) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 

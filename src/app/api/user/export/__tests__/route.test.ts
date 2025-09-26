@@ -154,20 +154,13 @@ describe("GET /api/user/export", () => {
     expect(mockFindOne).toHaveBeenCalledWith({ sub: MOCK_USER_SUB });
   });
 
-  it("should return 500 if required environment variables are not defined", async () => {
-    // Clear all environment variables for this test, but keep NODE_ENV as required
+  it("should throw during module import if required environment variables are not defined", async () => {
     process.env = { NODE_ENV: "test" } as NodeJS.ProcessEnv;
 
-    // Reset modules to pick up cleared env
     jest.resetModules();
-    const { GET: GET_WITH_EMPTY_ENV } = await import("../route");
 
-    const response = await GET_WITH_EMPTY_ENV();
-
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.message).toBe(
-      "Server configuration error: Required environment variables are not defined",
+    await expect(import("../route")).rejects.toThrow(
+      "ENCRYPTION_KEY is not defined.",
     );
   });
 });
