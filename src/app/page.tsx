@@ -5,6 +5,7 @@ import { Box, CssBaseline } from "@mui/material";
 import { useUser } from "@auth0/nextjs-auth0";
 import Head from "next/head";
 import { landing_page_navigation } from "@/lib/constants";
+import { auth0Audience, auth0Scope, isAuth0Configured } from "@/utils";
 import SocialProof from "@/components/landingPage/2-SocialProof";
 import AudienceCallOut from "@/components/landingPage/3-AudienceCallOut";
 import SolutionIntroduction from "@/components/landingPage/4-SolutionIntroduction";
@@ -14,7 +15,7 @@ import FuturePacing from "@/components/landingPage/7-FuturePacing";
 import FinalCTA from "@/components/landingPage/10-FinalCTA";
 import Navigation from "@/components/layout/Navigation";
 import Hero from "@/components/landingPage/1-Hero";
-import FAQ from "@/components/landingPage/8-FAQ";
+import FaqSection from "@/components/landingPage/8-FAQ";
 import Footer from "@/components/layout/Footer";
 
 export default function Home() {
@@ -26,32 +27,21 @@ export default function Home() {
     }
   }, [user]);
 
-  // Define allowed audience and scope
-  const allowedAudience = "urn:my-api";
-  const allowedScopes = [
-    "openid",
-    "profile",
-    "email",
-    "https://www.googleapis.com/auth/gmail.readonly",
-  ];
-
-  // Validate audience and scope
-  const audience = "urn:my-api";
-  const scope =
-    "openid profile email https://www.googleapis.com/auth/gmail.readonly";
-
-  if (!validateAudience(audience) || !validateScope(scope)) {
-    console.error("Invalid audience or scope.");
-    return null; // or fallback to a safe route
+  if (!isAuth0Configured) {
+    console.error("Auth0 audience is missing.");
+    return null;
   }
 
-  // Validate and encode URL parameters
-  function validateAudience(audience: string) {
-    return audience === allowedAudience;
+  const configuredScopes = auth0Scope.split(" ").filter(Boolean);
+
+  function validateScope(scope: string): boolean {
+    const scopeSegments = scope.split(" ").filter(Boolean);
+    return scopeSegments.every((segment) => configuredScopes.includes(segment));
   }
 
-  function validateScope(scope: string) {
-    return scope.split(" ").every((s: string) => allowedScopes.includes(s));
+  if (!auth0Audience || !validateScope(auth0Scope)) {
+    console.error("Invalid Auth0 configuration detected.");
+    return null;
   }
 
   return (
@@ -93,7 +83,7 @@ export default function Home() {
             <ShowExpertise />
             <FullOfferStack />
             <FuturePacing />
-            <FAQ />
+            <FaqSection />
             <FinalCTA />
           </Box>
           <Footer />

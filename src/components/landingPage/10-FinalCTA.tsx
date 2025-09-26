@@ -4,12 +4,23 @@ import { Button, Typography, Box, Container } from "@mui/material";
 import React from "react";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import posthog from "posthog-js";
-import { loginUrl } from "@/utils";
+import { createLoginUrl, isAuth0Configured } from "@/utils";
 
 const handleButtonClick = (action: string) => {
   if (typeof posthog !== "undefined") {
     posthog.capture(action);
   }
+};
+
+const handleHostedClick = () => {
+  handleButtonClick("hosted_cta_click");
+  const url = createLoginUrl();
+  if (!url) {
+    console.error("Unable to generate Auth0 login URL. Check configuration.");
+    return;
+  }
+
+  window.location.href = url;
 };
 
 function FinalCTA() {
@@ -82,8 +93,8 @@ function FinalCTA() {
               borderRadius: 2,
               boxShadow: "none",
             }}
-            href={loginUrl}
-            onClick={() => handleButtonClick("hosted_cta_click")}
+            onClick={handleHostedClick}
+            disabled={!isAuth0Configured}
           >
             Get Hosted Version
           </Button>

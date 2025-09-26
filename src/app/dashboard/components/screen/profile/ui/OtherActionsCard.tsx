@@ -1,11 +1,17 @@
 import React from "react";
 import { Card, CardContent, Typography, Box, Button } from "@mui/material";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import { createLoginUrl, isAuth0Configured } from "@/utils";
 
 export function OtherActionsCard() {
   const handleGrantPermissions = () => {
-    window.location.href =
-      "/auth/login?audience=urn:my-api&scope=openid%20profile%20email%20https://www.googleapis.com/auth/gmail.readonly&access_type=offline&prompt=consent";
+    const url = createLoginUrl({ prompt: "consent" });
+    if (!url) {
+      console.error("Unable to generate Auth0 login URL. Check configuration.");
+      return;
+    }
+
+    window.location.href = url;
   };
   return (
     <Card
@@ -42,6 +48,7 @@ export function OtherActionsCard() {
             variant="contained"
             onClick={handleGrantPermissions}
             fullWidth
+            disabled={!isAuth0Configured}
             sx={{
               py: 1.5,
               borderRadius: "8px",

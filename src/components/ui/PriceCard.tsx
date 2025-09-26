@@ -11,9 +11,10 @@ import {
 } from "@mui/material";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 
-export default function PriceCard({ data }: PriceCardProps) {
+export default function PriceCard({ data }: Readonly<PriceCardProps>) {
   const currencySymbol = data.currency || "€";
   const displayedPrice = data.price.toFixed(2);
+  const isDisabled = !data.subscriptionLink;
 
   return (
     <Card
@@ -116,10 +117,15 @@ export default function PriceCard({ data }: PriceCardProps) {
             letterSpacing: 1,
             border: "none",
           }}
-          component="a"
-          href={data.subscriptionLink}
-          target="_blank"
-          rel="noopener noreferrer"
+          component={isDisabled ? "button" : "a"}
+          {...(!isDisabled
+            ? {
+                href: data.subscriptionLink,
+                target: "_blank",
+                rel: "noopener noreferrer",
+              }
+            : {})}
+          disabled={isDisabled}
         >
           {data.buttonText}
         </Button>

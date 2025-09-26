@@ -5,7 +5,7 @@ import React from "react";
 import posthog from "posthog-js";
 import Image from "next/image";
 
-import { loginUrl } from "@/utils";
+import { createLoginUrl, isAuth0Configured } from "@/utils";
 
 const handleButtonClick = (action: string) => {
   if (typeof posthog !== "undefined") {
@@ -14,6 +14,17 @@ const handleButtonClick = (action: string) => {
 };
 
 function Hero() {
+  const handleGetStarted = () => {
+    handleButtonClick("hosted_cta_click");
+    const url = createLoginUrl();
+    if (!url) {
+      console.error("Unable to generate Auth0 login URL. Check configuration.");
+      return;
+    }
+
+    window.location.href = url;
+  };
+
   return (
     <Box
       sx={{
@@ -88,8 +99,8 @@ function Hero() {
               textTransform: "none",
               borderRadius: 2,
             }}
-            href={loginUrl}
-            onClick={() => handleButtonClick("hosted_cta_click")}
+            onClick={handleGetStarted}
+            disabled={!isAuth0Configured}
           >
             Get Started
           </Button>

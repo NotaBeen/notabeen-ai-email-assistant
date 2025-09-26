@@ -19,13 +19,13 @@ import Navigation from "@/components/layout/Navigation";
 import PriceCard from "@/components/ui/PriceCard";
 import Footer from "@/components/layout/Footer";
 import { landing_page_navigation } from "@/lib/constants";
-import { loginUrl } from "@/utils";
+import { createLoginUrl, isAuth0Configured } from "@/utils";
 
 // ---
 // Define data for pricing plans and features
 // ---
 
-const subscriptionPlans = [
+const baseSubscriptionPlans = [
   {
     id: 1,
     tier: "Open Source",
@@ -72,7 +72,7 @@ const subscriptionPlans = [
       "Private Cloud Hosting",
       "Full-time Support",
     ],
-    subscriptionLink: loginUrl,
+    subscriptionLink: "",
     buttonText: "Get it Now",
     trialAvailable: false,
     isRecommended: true,
@@ -129,6 +129,27 @@ const subscriptionFeatures = [
 ];
 
 export default function Pricing() {
+  const managedServiceLink = React.useMemo(() => createLoginUrl(), []);
+
+  const subscriptionPlans = React.useMemo(
+    () =>
+      baseSubscriptionPlans.map((plan) => {
+        if (plan.tier !== "Managed Service") {
+          return plan;
+        }
+
+        return {
+          ...plan,
+          subscriptionLink: managedServiceLink ?? "",
+        };
+      }),
+    [managedServiceLink],
+  );
+
+  if (!isAuth0Configured) {
+    console.error("Auth0 audience is missing.");
+  }
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <Navigation pages={landing_page_navigation} />

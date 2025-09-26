@@ -13,13 +13,18 @@ import {
 } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 import posthog from "posthog-js";
-import { loginUrl } from "@/utils";
+import { createLoginUrl, isAuth0Configured } from "@/utils";
 
-interface NavigationProps {
-  pages: { name: string; address: string }[];
+interface NavigationPage {
+  readonly name: string;
+  readonly address: string;
 }
 
-export default function Navigation({ pages }: NavigationProps) {
+interface NavigationProps {
+  readonly pages: ReadonlyArray<NavigationPage>;
+}
+
+export default function Navigation({ pages }: Readonly<NavigationProps>) {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(
     null,
   );
@@ -29,6 +34,17 @@ export default function Navigation({ pages }: NavigationProps) {
   };
   const handleCloseNavMenu = () => {
     setAnchorElNav(null);
+  };
+
+  const handleGetStarted = () => {
+    const url = createLoginUrl();
+    if (!url) {
+      console.error("Unable to generate Auth0 login URL. Check configuration.");
+      return;
+    }
+
+    posthog.capture("get_started_button_click");
+    window.location.href = url;
   };
 
   return (
@@ -107,12 +123,12 @@ export default function Navigation({ pages }: NavigationProps) {
                 },
               }}
             >
-              {pages.map(({ name, address }) => (
+              {pages.map((page) => (
                 <MenuItem
-                  key={name}
+                  key={page.name}
                   onClick={handleCloseNavMenu}
                   component={Link}
-                  href={address}
+                  href={page.address}
                   sx={{
                     color: "text.secondary",
                     py: 1.5,
@@ -123,7 +139,7 @@ export default function Navigation({ pages }: NavigationProps) {
                     textAlign="left"
                     sx={{ fontWeight: 600, width: "100%", color: "inherit" }}
                   >
-                    {name}
+                    {page.name}
                   </Typography>
                 </MenuItem>
               ))}
@@ -161,30 +177,28 @@ export default function Navigation({ pages }: NavigationProps) {
               gap: 4,
             }}
           >
-            {pages.map(
-              ({ name, address }: { name: string; address: string }) => (
-                <Button
-                  key={name}
-                  component={Link}
-                  href={address}
-                  onClick={handleCloseNavMenu}
-                  sx={{
-                    my: 2,
-                    color: "text.secondary",
-                    display: "block",
-                    textTransform: "none",
-                    fontSize: 16,
-                    fontWeight: 500,
-                    "&:hover": {
-                      color: "primary.main",
-                      bgcolor: "transparent",
-                    },
-                  }}
-                >
-                  {name}
-                </Button>
-              ),
-            )}
+            {pages.map((page) => (
+              <Button
+                key={page.name}
+                component={Link}
+                href={page.address}
+                onClick={handleCloseNavMenu}
+                sx={{
+                  my: 2,
+                  color: "text.secondary",
+                  display: "block",
+                  textTransform: "none",
+                  fontSize: 16,
+                  fontWeight: 500,
+                  "&:hover": {
+                    color: "primary.main",
+                    bgcolor: "transparent",
+                  },
+                }}
+              >
+                {page.name}
+              </Button>
+            ))}
           </Box>
 
           {/* Get Started Button */}
@@ -195,16 +209,15 @@ export default function Navigation({ pages }: NavigationProps) {
               bgcolor: "primary.main",
               color: "primary.contrastText",
               px: { xs: 2, md: 3 },
-              py: { xs: 0.8, md: 1.5 }, // Adjusted button vertical padding for mobile
+              py: { xs: 0.8, md: 1.5 },
               borderRadius: 2,
               textTransform: "none",
               "&:hover": {
                 bgcolor: "primary.dark",
               },
             }}
-            component={Link}
-            href={loginUrl}
-            onClick={() => posthog.capture("get_started_button_click")}
+            onClick={handleGetStarted}
+            disabled={!isAuth0Configured}
           >
             Get Started
           </Button>
