@@ -24,8 +24,12 @@ const clientPromise = uri
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
 const CLIENT_ID = process.env.AUTH0_CLIENT_ID;
 const CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET;
-const AUDIENCE = `https://${AUTH0_DOMAIN}/api/v2/`;
+const AUDIENCE = process.env.AUTH0_AUDIENCE;
 
+/**
+ * Strips HTML tags and redacts naked URLs from a Gmail message body, producing
+ * a clean text version suitable for prompt engineering and storage.
+ */
 function formatBodyText(body: string): string {
   if (!body) return "";
   let cleanedBody = body.replace(/<\/?[^>]+(>|$)/g, "");
@@ -33,7 +37,26 @@ function formatBodyText(body: string): string {
   return cleanedBody.trim();
 }
 
+/**
+ * Retrieves an Auth0 Management API token using client-credentials flow.
+ * Validates that the necessary environment variables are present and surfaces
+ * granular error messages for common misconfigurations (missing scope, invalid
+ * secret, etc.).
+ */
 async function getManagementApiToken(): Promise<string> {
+  if (!AUTH0_DOMAIN || !CLIENT_ID || !CLIENT_SECRET || !AUDIENCE) {
+    logger.error("Auth0 Management API credentials are not fully configured.", {
+      hasDomain: Boolean(AUTH0_DOMAIN),
+      hasClientId: Boolean(CLIENT_ID),
+      hasClientSecret: Boolean(CLIENT_SECRET),
+    });
+    throw new CustomError(
+      "Auth0 Management API credentials are missing. Ensure AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET are set.",
+      500,
+      true,
+    );
+  }
+
   try {
     const response = await axios.post(`https://${AUTH0_DOMAIN}/oauth/token`, {
       client_id: CLIENT_ID,
@@ -44,7 +67,35 @@ async function getManagementApiToken(): Promise<string> {
     });
     return response.data.access_token;
   } catch (error) {
-    logger.error("Error fetching Management API token:", error);
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const details = error.response?.data;
+      logger.error("Error fetching Management API token via Auth0.", {
+        status,
+        data: details,
+      });
+
+      if (status === 403) {
+        throw new CustomError(
+          "Auth0 credentials are not authorized to access the Management API. Verify the client credentials and grant the 'read:users' scope.",
+          502,
+          true,
+        );
+      }
+
+      const description =
+        typeof details === "object" && details
+          ? details.error_description || details.error || error.message
+          : error.message;
+
+      throw new CustomError(
+        `Failed to get Management API token: ${description}`,
+        status ?? 500,
+        false,
+      );
+    }
+
+    logger.error("Unexpected error while fetching Management API token:", error);
     throw new CustomError("Failed to get Management API token", 500, false);
   }
 }
@@ -53,6 +104,10 @@ interface UserProfile {
   identities?: { access_token?: string; refresh_token?: string }[];
 }
 
+/**
+ * Fetches the full Auth0 user profile so we can extract the Google access
+ * token the user granted during OAuth. Requires the `read:users` scope.
+ */
 async function fetchUserProfile(
   managementToken: string,
   userId: string,
@@ -92,6 +147,10 @@ interface UserDocument {
   sub: string;
 }
 
+/**
+ * Loads the application's persisted user document to ensure the caller is a
+ * known customer before processing Gmail data.
+ */
 async function fetchUserFromDatabase(
   sub: string,
 ): Promise<UserDocument | null> {
