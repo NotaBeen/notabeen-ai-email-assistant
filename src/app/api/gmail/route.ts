@@ -21,10 +21,14 @@ const clientPromise = uri
   : Promise.reject(new Error("MONGODB_URI is not defined"));
 
 // --- Auth0 Environment Variables ---
-const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
-const CLIENT_ID = process.env.AUTH0_CLIENT_ID;
-const CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET;
-const AUDIENCE = process.env.AUTH0_AUDIENCE;
+const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN?.trim();
+const CLIENT_ID = process.env.AUTH0_CLIENT_ID?.trim();
+const CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET?.trim();
+const PUBLIC_AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE?.trim();
+const AUDIENCE =
+  process.env.AUTH0_AUDIENCE?.trim() ||
+  PUBLIC_AUDIENCE ||
+  (AUTH0_DOMAIN ? `https://${AUTH0_DOMAIN}/api/v2/` : undefined);
 
 /**
  * Strips HTML tags and redacts naked URLs from a Gmail message body, producing
@@ -45,13 +49,23 @@ function formatBodyText(body: string): string {
  */
 async function getManagementApiToken(): Promise<string> {
   if (!AUTH0_DOMAIN || !CLIENT_ID || !CLIENT_SECRET || !AUDIENCE) {
+    const missingFields = [
+      !AUTH0_DOMAIN && "AUTH0_DOMAIN",
+      !CLIENT_ID && "AUTH0_CLIENT_ID",
+      !CLIENT_SECRET && "AUTH0_CLIENT_SECRET",
+      !AUDIENCE &&
+        "AUTH0_AUDIENCE (or set NEXT_PUBLIC_AUTH0_AUDIENCE / derive from AUTH0_DOMAIN)",
+    ].filter(Boolean);
+
     logger.error("Auth0 Management API credentials are not fully configured.", {
       hasDomain: Boolean(AUTH0_DOMAIN),
       hasClientId: Boolean(CLIENT_ID),
       hasClientSecret: Boolean(CLIENT_SECRET),
+      hasAudience: Boolean(AUDIENCE),
+      missingFields,
     });
     throw new CustomError(
-      "Auth0 Management API credentials are missing. Ensure AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET are set.",
+      `Auth0 Management API credentials are missing: ${missingFields.join(", ")}.`,
       500,
       true,
     );
