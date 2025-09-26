@@ -68,6 +68,7 @@ AUTH0_CLIENT_ID=
 AUTH0_CLIENT_SECRET=
 AUTH0_DOMAIN=
 AUTH0_SECRET=use [openssl rand -hex 32] to generate a 32 bytes value
+NEXT_PUBLIC_AUTH0_AUDIENCE=
 ENCRYPTION_IV=
 ENCRYPTION_KEY=
 GEMINI_API_KEY=
@@ -84,6 +85,7 @@ MONGO_CLIENT=
 - **`AUTH0_CLIENT_SECRET`**: Your **Auth0** application client secret, also found in your [Auth0 dashboard](https://manage.auth0.com/). It's used to securely authenticate your application.
 - **`AUTH0_DOMAIN`**: Your **Auth0** domain, which looks something like `your-account.us.auth0.com`. You'll find this in your [Auth0 dashboard](https://manage.auth0.com/).
 - **`AUTH0_SECRET`**: A long, random string used to encrypt and sign cookies. To generate a secure value, run `openssl rand -hex 32` in your terminal.
+- **`NEXT_PUBLIC_AUTH0_AUDIENCE`**: The Auth0 audience your frontend requests during login. For the Management API this should be set to `https://YOUR_DOMAIN/api/v2/` (replace `YOUR_DOMAIN` with your Auth0 domain).
 - **`ENCRYPTION_IV`**: An **Initialization Vector** (IV) for data encryption. A simple way to generate this is by using `openssl rand -hex 16` in your terminal.
 - **`ENCRYPTION_KEY`**: A **symmetric key** for data encryption. You can use `openssl rand -hex 32` to generate it in your terminal.
 - **`GEMINI_API_KEY`**: Your API key for the **Google Gemini API**. This is essential for the AI-powered features. You can get this from the [Google AI Studio](https://aistudio.google.com/app/apikey) or [Google Cloud Console](https://cloud.google.com/gemini/docs/api/get-started/rest).
