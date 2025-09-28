@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/readMeImg.png" alt="NotaBeen Banner" width="100%" />
+  <img src="public/readMeImg.png" alt="NotaBeen Banner" width="100%" />
 </p>
 
 ### NotaBeen
@@ -9,8 +9,8 @@
 <br/>
 
 <div align="center">
-  <a href="https://github.com/NotaBeen/notabeen-ai-email-assistant/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/NotaBeen/notabeen-ai-email-assistant"></a>
-  <a href="https://github.com/NotaBeen/NotaBeen/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-purple"></a>
+  <a href="https://github.com/NotaBeen/notabeen-ai-email-assistant/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/NotaBeen/notabeen-ai-email-assistant"></a>
+  <a href="https://github.com/NotaBeen/NotaBeen/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-purple"></a>
 </div>
 
 <br/>
@@ -34,82 +34,199 @@ NotaBeen is an open-source email assistant that uses AI to help you manage your 
 - [MongoDB](https://www.mongodb.com/) – Database
 - [Google Gemini API](https://ai.google.dev/docs/gemini_api_overview) – AI Engine
 
-## Getting Started
+## Getting Started: Setup Guide for New Users
 
 ### Prerequisites
 
 Here's what you need to run NotaBeen:
 
 - Node.js (version >= 18.0.0)
-- MongoDB Database
-- A Google Gemini API Key
+- **MongoDB** Database (e.g., [MongoDB Atlas](https://www.mongodb.com/atlas))
+- An **Auth0** Account
+- A **Google Gemini API Key**
+- A **Google Cloud Project**
 
-### 1. Clone the repository
+### 1. Local Setup
 
-```shell
-git clone https://github.com/NotaBeen/notabeen-ai-email-assistant.git
-cd NotaBeen
-```
+| Step | Instruction |
+| :--- | :--- |
+| **1.1 Clone Repository** | `git clone https://github.com/NotaBeen/notabeen-ai-email-assistant.git` <br/> `cd notabeen-ai-email-assistant` |
+| **1.2 Install Dependencies** | `npm install` |
+| **1.3 Environment File** | Create a **`.env.local`** file in the root directory. |
+| **1.4 MongoDB URI Update** | In your `.env.local`, update your `MONGODB_URI` by adding `?retryWrites=true&w=majority&appName=Cluster0` to the string. **Note**: Replace `Cluster0` with your actual MongoDB application name (e.g., `appName=notabeen-cluster`). |
 
-### 2. Install npm dependencies
+### 2. Auth0 Configuration
 
-```shell
+This setup is crucial for user authentication and Gmail access.
 
-npm install
-```
+#### 2.1 API Setup
 
-### 3. Set up environment variables
+1.  Navigate to **APIs** in your Auth0 dashboard and click **+ Create API**.
+2.  Set **Name** to `urn:my-api`.
+3.  Set **Identifier** to `urn:my-api`.
+4.  Set **JWT Signature Algorithm** to **RS256**.
+5.  Go to the **Permissions** tab for the `urn:my-api` API and add the following two permissions:
+    - **Permission**: `https://www.googleapis.com/auth/gmail.readonly`, **Description**: `gmail read`
+    - **Permission**: `https://mail.google.com/`, **Description**: `gmail`
 
-Create a .env.local file in the root directory and add the following required variables. These are essential for the core functionality of the application.
+#### 2.2 Application Setup
 
-```shell
-APP_BASE_URL=http://localhost:3000/
-AUTH0_CLIENT_ID=
-AUTH0_CLIENT_SECRET=
-AUTH0_DOMAIN=
-AUTH0_SECRET=use [openssl rand -hex 32] to generate a 32 bytes value
-ENCRYPTION_IV=
-ENCRYPTION_KEY=
-GEMINI_API_KEY=
-MONGODB_URI=
-MONGO_CLIENT=
-```
+1.  Navigate to **Applications** and click **+ Create Application**.
+2.  Select **Regular Web Application**.
+3.  Go to **Settings** and copy the following values to your `.env.local` file:
+    - `AUTH0_CLIENT_ID=`
+    - `AUTH0_CLIENT_SECRET=`
+    - `AUTH0_DOMAIN=`
+4.  In **Settings**, set:
+    - **Allowed Callback URLs**: `http://localhost:3000/auth/callback`, `http://localhost:3000/`
+    - **Allowed Logout URLs**: `http://localhost:3000/` (or your preferred logout URL)
+    - **Allowed Web Origins**: `http://localhost:3000/`
+5.  Enable **Cross-Origin Authentication**.
+6.  Scroll to the bottom and **Save Changes**.
 
-### Environment Variable Instructions
+#### 2.3 Management API Authorization
 
-#### Required Variables (For all contributors)
+1.  Navigate to **APIs** and select the **Auth0 Management API**.
+2.  Go to the **Machine to Machine Applications** tab.
+3.  Find your application and click the **Authorize** dropdown, then select **Allow all** and **Update**.
 
-- **`APP_BASE_URL`**: This is the base URL for your application. For local development, it should be set to `http://localhost:3000/`.
-- **`AUTH0_CLIENT_ID`**: Your **Auth0** application client ID. This is required for user authentication and can be found in your [Auth0 dashboard](https://manage.auth0.com/).
-- **`AUTH0_CLIENT_SECRET`**: Your **Auth0** application client secret, also found in your [Auth0 dashboard](https://manage.auth0.com/). It's used to securely authenticate your application.
-- **`AUTH0_DOMAIN`**: Your **Auth0** domain, which looks something like `your-account.us.auth0.com`. You'll find this in your [Auth0 dashboard](https://manage.auth0.com/).
-- **`AUTH0_SECRET`**: A long, random string used to encrypt and sign cookies. To generate a secure value, run `openssl rand -hex 32` in your terminal.
-- **`ENCRYPTION_IV`**: An **Initialization Vector** (IV) for data encryption. A simple way to generate this is by using `openssl rand -hex 16` in your terminal.
-- **`ENCRYPTION_KEY`**: A **symmetric key** for data encryption. You can use `openssl rand -hex 32` to generate it in your terminal.
-- **`GEMINI_API_KEY`**: Your API key for the **Google Gemini API**. This is essential for the AI-powered features. You can get this from the [Google AI Studio](https://aistudio.google.com/app/apikey) or [Google Cloud Console](https://cloud.google.com/gemini/docs/api/get-started/rest).
-- **`MONGODB_URI`**: The connection string for your **MongoDB** database. You can get this from a service like [MongoDB Atlas](https://www.mongodb.com/atlas) or by setting up a local MongoDB instance.
-- **`MONGODB_CLIENT`**: Set any name for your Mongo client
+#### 2.4 Google Social Connection
 
-#### Optional Variables (For development and production)
+1.  Navigate to **Authentication** -> **Social** and click **+ Create Connection** -> **Custom** connection.
+2.  Set **Name**: `Google`.
+3.  Set **Authorization URL**: `https://accounts.google.com/o/oauth2/auth`
+4.  Set **Token URL**: `https://oauth2.googleapis.com/token`
+5.  Set **Scope**: `https://www.googleapis.com/auth/gmail.readonly openid email profile` (**Ensure scopes are separated by a space and 'Separate scopes using a space' is checked**).
+6.  Enter the **Client ID** and **Client Secret** (obtained from your **Google Cloud Project** OAuth client, see **Step 3.2**).
+7.  Add the following **Fetch User Profile Script**:
 
-The following variables are not strictly necessary for running the application, but may be useful for a complete local setup or for cloud deployment.
+    ```javascript
+    function(accessToken, ctx, callback) {
+      const url = '[https://www.googleapis.com/oauth2/v2/userinfo](https://www.googleapis.com/oauth2/v2/userinfo)';
 
-- **`APP_BASE_URL`**: This is the base URL for your application. For local development, it should be set to `http://localhost:3000/`.
-- **`NEXT_PUBLIC_DOMAIN_URL`**: The public URL for API routes. For local development, this is typically `http://localhost:3000/api/`.
-- **`NEXT_PUBLIC_POSTHOG_HOST`**: The URL of your **PostHog** instance, used for analytics.
-- **`NEXT_PUBLIC_POSTHOG_KEY`**: The public API key for your **PostHog** instance.
-- **`NODE_ENV`**: The environment mode. For local development, it is typically `development`, but for a production build, set this to `production`.
+      request.get(
+        {
+          url: url,
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          },
+          json: true
+        },
+        function(err, response, body) {
+          if (err) return callback(err);
+          if (response.statusCode !== 200)
+            return callback(new Error('Failed to fetch user profile'));
 
-### 4. Run the dev server
+          const profile = {
+            user_id: body.id,
+            name: body.name,
+            given_name: body.given_name,
+            family_name: body.family_name,
+            email: body.email,
+            picture: body.picture,
+            locale: body.locale
+          };
 
-```shell
+          callback(null, profile);
+        }
+      );
+    }
+    ```
+8.  **Create** the connection.
+9.  In the new connection's settings, ensure your application is enabled under **Applications Using This Connection**.
+10. Navigate to **Authentication** -> **Database** -> **Username-Password-Authentication** and **untick** your application name, as the app currently only works with Gmail login.
 
-npm run dev
-```
+#### 2.5 API Connection to Application
 
-### 5. Open the app in your browser
+1.  Navigate back to **APIs** and select `urn:my-api`.
+2.  Go to the **Machine to Machine Applications** tab.
+3.  Find your application name and **Tick the box to authorize** the connection.
 
-Visit [http://localhost:3000](http://localhost:3000) in your browser.
+---
+
+### 3. Google Gemini & Cloud Setup
+
+#### 3.1 Gemini API Key
+
+1.  Go to the **Google AI Studio** API Keys page: `https://aistudio.google.com/app/api-keys`.
+2.  Create a project and generate a new API key.
+3.  Copy this key to your `.env.local` file: `GEMINI_API_KEY=`
+
+#### 3.2 Google Cloud Project (For Gmail Access)
+
+1.  Go to the **Google Cloud Console**: `https://console.cloud.google.com/`.
+2.  **Create a new project** and complete the basic setup.
+3.  Enable the **Gmail API**:
+    - Navigate to the **APIs & Services Library**: `https://console.cloud.google.com/apis/library`.
+    - Search for and **Enable** the **Gmail API**.
+4.  Configure **OAuth Consent Screen**:
+    - Go to **APIs & Services** -> **OAuth consent screen**.
+    - Configure the screen. You must add your own Gmail email to the **Test users** list.
+5.  Configure **OAuth Credentials**:
+    - Navigate to **APIs & Services** -> **Credentials**.
+    - Click **+ Create Credentials** -> **OAuth client ID**.
+    - **Application type**: **Web application**.
+    - **Authorized JavaScript origins**: `http://localhost:3000`
+    - **Authorized redirect URIs**:
+        ```
+        http://localhost:3000/auth/callback
+        http://localhost:3000/
+        https://localhost:3000/auth/callback
+        https://dev-YOUR-AUTH0-DOMAIN/login/callback  <- Replace with your actual Auth0 domain
+        https://www.googleapis.com/auth/gmail.readonly
+        ```
+    - **Create** the client. **Copy the Client ID and Client Secret** and use them for the **Auth0 Custom Social Connection** setup in **Step 2.4**.
+
+#### 3.3 Data Access Scopes
+
+1.  Navigate to **APIs & Services** -> **Credentials** -> **Data Access** (or click on your project's data access settings).
+2.  Click **Add/Remove scope** and search for `gmail.readonly`.
+3.  **Enable** the scope and **Update** the settings.
+
+---
+
+### 4. Encryption Key Generation
+
+The app encrypts sensitive data. You must generate unique keys.
+
+1.  You will need **OpenSSL** installed to generate these keys (e.g., from `https://slproweb.com/products/Win32OpenSSL.html` for Windows).
+2.  Generate the **Initialization Vector (IV)**:
+    ```shell
+    openssl rand -base64 9
+    ```
+    Copy the output to your `.env.local`: `ENCRYPTION_IV=`
+3.  Generate the **Encryption Key**:
+    ```shell
+    openssl rand -base64 24
+    ```
+    Copy the output to your `.env.local`: `ENCRYPTION_KEY=`
+
+> **⚠️ IMPORTANT NOTE:** If you change the encryption keys *after* a user account has been created, you **must** manually empty the `user` and `emails` collections in your MongoDB database, otherwise, decryption errors will occur.
+
+---
+
+### 5. Run the App
+
+1.  Add the final environment variables to your `.env.local`:
+    ```shell
+    AUTH0_SECRET= # Use [openssl rand -hex 32] to generate a 32 bytes value
+    APP_BASE_URL=http://localhost:3000/
+    MONGO_CLIENT=notabeen
+    ```
+2.  Start the development server:
+    ```shell
+    npm run dev
+    ```
+3.  Open the app in your browser: [http://localhost:3000](http://localhost:3000)
+
+---
+
+### Troubleshooting
+
+- **403 Error after login**: On the top right menu, click your profile and select **Grant Gmail Permission**. Log out and log in again.
+- **Login Loop / Permission Error**: Double-check all Auth0 and Google Cloud settings, especially the **Client ID/Secret** match, **Allowed Callback URLs**, and that the **Gmail API** is enabled.
+
+---
 
 ## **Important Note:** Currently, the app only supports Gmail.
 
