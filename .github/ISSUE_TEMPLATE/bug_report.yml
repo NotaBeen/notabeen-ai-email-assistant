@@ -1,0 +1,102 @@
+name: "Bug report"
+description: "Report a reproducible problem so we can get it fixed fast."
+title: "[Bug]: <concise summary>"
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the project! Please fill out the sections below so we can diagnose the issue quickly.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: "What went wrong?"
+      placeholder: "Pagination throws when navigating to page 2"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: "List the exact steps so we can reproduce the bug."
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. Observe ...
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: "What did you expect to happen?"
+      placeholder: "It should stay on the selected page."
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: "What actually happened instead?"
+      placeholder: "The app crashes with ..."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack traces / screenshots
+      description: "Paste relevant logs or attach screenshots (redact sensitive info)."
+      render: bash
+  - type: input
+    id: environment_version
+    attributes:
+      label: App version or git commit
+      description: "Include the semantic version or commit SHA if possible."
+      placeholder: "v1.3.0 or 1a2b3c4"
+  - type: dropdown
+    id: environment_browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Other / N/A
+    validations:
+      required: true
+  - type: dropdown
+    id: environment_os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - iOS
+        - Android
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Impact severity
+      description: "How urgent is this fix?"
+      options:
+        - Blocking
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: "Anything else we should know?"
+      placeholder: "Links, related issues, feature flags, etc."

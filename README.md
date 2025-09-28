@@ -47,7 +47,7 @@ Here's what you need to run NotaBeen:
 ### 1. Clone the repository
 
 ```shell
-git clone [https://github.com/NotaBeen/notabeen-ai-email-assistant.git](https://github.com/NotaBeen/notabeen-ai-email-assistant.git)
+git clone https://github.com/NotaBeen/notabeen-ai-email-assistant.git
 cd NotaBeen
 ```
 
