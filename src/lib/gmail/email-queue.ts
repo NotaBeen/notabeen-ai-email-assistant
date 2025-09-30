@@ -38,8 +38,8 @@ class EmailProcessingQueue {
   private readonly MAX_RETRIES = 3;
   private readonly BASE_RETRY_DELAY = 60000; // 1 minute
   private readonly MAX_RETRY_DELAY = 300000; // 5 minutes
-  private readonly PROCESSING_INTERVAL = 5000; // Process every 5 seconds for faster queue clearing
-  private readonly STATS_INTERVAL = 60000; // Update stats every minute
+  private readonly PROCESSING_INTERVAL = 3000; // Process every 3 seconds for even faster queue clearing
+  private readonly STATS_INTERVAL = 30000; // Update stats every 30 seconds
   private readonly MAX_QUEUE_SIZE = 1000;
   private readonly BATCH_SIZE = 5; // Process 5 emails at a time for faster queue clearing
 

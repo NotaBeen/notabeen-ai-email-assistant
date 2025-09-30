@@ -9,6 +9,7 @@ import TermsConditionsPopup from "@/components/popup/TermsConditionsPopup";
 import posthog from "posthog-js";
 import Overview from "./components/screen/overview/Overview";
 import QuotaWarning from "@/components/QuotaWarning";
+import LoadingOverlay from "@/components/LoadingOverlay";
 import { Email } from "@/types/interfaces";
 
 type CurrentEmail = Email;
@@ -37,6 +38,23 @@ function Dashboard() {
     quotaLimit?: string;
     helpUrl?: string;
   } | null>(null);
+
+  const [loadingState, setLoadingState] = useState<{
+    isOpen: boolean;
+    message?: string;
+    operationType?: 'refresh' | 'processing' | 'queue' | 'initial';
+    progress?: number;
+    showProgress?: boolean;
+    queueStats?: {
+      total: number;
+      pending: number;
+      processing: number;
+      completed: number;
+    };
+  }>({
+    isOpen: false,
+    operationType: 'processing'
+  });
 
   // Function to fetch user data and terms acceptance
   const fetchUserDataAndVerifyEmail = useCallback(async () => {
@@ -101,6 +119,14 @@ function Dashboard() {
     async (isInitialLoad = false) => {
       if (termsAccepted === false || !accessToken) return;
       setIsDataLoading(true);
+
+      // Set loading overlay state
+      setLoadingState({
+        isOpen: true,
+        operationType: isInitialLoad ? 'initial' : 'refresh',
+        message: isInitialLoad ? 'Loading your workspace...' : 'Refreshing your emails...'
+      });
+
       try {
         const response = await fetch("/api/gmail", {
           method: "GET",
@@ -109,6 +135,19 @@ function Dashboard() {
           },
         });
         if (response.ok) {
+          const data = await response.json();
+
+          // Update loading state with queue information if available
+          if (data.queueStats) {
+            setLoadingState(prev => ({
+              ...prev,
+              message: `Processing ${data.queueStats.total} emails...`,
+              operationType: 'queue',
+              queueStats: data.queueStats,
+              showProgress: data.queueStats.total > 0
+            }));
+          }
+
           await getEmails(); // Fetch the new list of emails for display
           posthog.capture("gmail_connected");
           if (isInitialLoad) setInitialRefreshDone(true);
@@ -138,6 +177,8 @@ function Dashboard() {
         console.error("Failed to process emails:", error);
       } finally {
         setIsDataLoading(false);
+        // Close loading overlay
+        setLoadingState(prev => ({ ...prev, isOpen: false }));
       }
     },
     [accessToken, getEmails, termsAccepted],
@@ -258,6 +299,16 @@ function Dashboard() {
           </Box>
         )}
       </Box>
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        isOpen={loadingState.isOpen}
+        message={loadingState.message}
+        operationType={loadingState.operationType}
+        progress={loadingState.progress}
+        showProgress={loadingState.showProgress}
+        queueStats={loadingState.queueStats}
+      />
     </Box>
   );
 }

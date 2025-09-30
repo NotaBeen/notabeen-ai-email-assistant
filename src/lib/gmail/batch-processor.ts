@@ -11,8 +11,8 @@ import { auth } from "@/auth";
 import { GoogleGenAI } from "@google/genai";
 
 const MAX_BATCH_SIZE = 5; // Optimized for concurrent processing without overwhelming rate limits
-const BASE_BATCH_DELAY_MS = 1000; // Reduced delay between batches (1 second)
-const BASE_EMAIL_DELAY_MS = 500; // Reduced delay between individual emails in batch
+const BASE_BATCH_DELAY_MS = 500; // Further reduced delay between batches (0.5 seconds)
+const BASE_EMAIL_DELAY_MS = 200; // Reduced delay between concurrent groups (0.2 seconds)
 const BACKOFF_MULTIPLIER = 2; // Multiplier for backoff when rate limits are hit
 const MAX_DELAY_MS = 60000; // Maximum delay (1 minute)
 const USE_BATCH_API = false; // Disable batch API - requires GCS setup, not suitable for real-time queue processing
@@ -314,40 +314,93 @@ async function processBatchIndividually(
     failed: []
   };
 
-  // Process emails sequentially within the batch to avoid concurrent rate limit hits
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
-    try {
-      const precis = await generateAndSavePrecis(message);
-      if (precis) {
-        result.successful.push({ ...message, precis });
-      }
-    } catch (error: unknown) {
-      const errorObj = error as { status?: number; retryAfter?: number; quotaInfo?: { quotaMetric?: string; quotaValue?: string } };
-      const isRateLimit = errorObj.status === 429 || errorObj.status === 503;
+  // Process emails in concurrent groups to balance speed and rate limits
+  const CONCURRENT_LIMIT = 3; // Process 3 emails at once
+  const groups = [];
 
-      result.failed.push({
-        message,
-        error: error as Error,
-        isRateLimit
-      });
+  for (let i = 0; i < messages.length; i += CONCURRENT_LIMIT) {
+    groups.push(messages.slice(i, i + CONCURRENT_LIMIT));
+  }
 
-      // If we hit a rate limit, capture the info and stop processing this batch
-      if (isRateLimit) {
-        result.rateLimitInfo = {
-          quotaExceeded: true,
+  logger.info(`Processing ${messages.length} emails in ${groups.length} groups (3 concurrent per group)`);
+
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+    const group = groups[groupIndex];
+
+    logger.info(`Processing group ${groupIndex + 1}/${groups.length} with ${group.length} emails`);
+
+    // Process emails in this group concurrently
+    const promises = group.map(async (message) => {
+      try {
+        const precis = await generateAndSavePrecis(message);
+        if (precis) {
+          return { success: true, message, precis };
+        }
+        return { success: false, message, error: new Error('No precis generated') };
+      } catch (error: unknown) {
+        const errorObj = error as { status?: number; retryAfter?: number; quotaInfo?: { quotaMetric?: string; quotaValue?: string } };
+        const isRateLimit = errorObj.status === 429 || errorObj.status === 503;
+
+        return {
+          success: false,
+          message,
+          error: error as Error,
+          isRateLimit,
           retryAfter: errorObj.retryAfter,
-          quotaMetric: errorObj.quotaInfo?.quotaMetric,
-          quotaLimit: errorObj.quotaInfo?.quotaValue
+          quotaInfo: errorObj.quotaInfo
         };
-        break;
       }
+    });
 
-      // Add delay between individual emails (except after the last one or rate limit)
-      if (i < messages.length - 1 && !isRateLimit) {
-        logger.info(`Waiting ${emailDelayMs}ms before next email...`);
-        await new Promise(resolve => setTimeout(resolve, emailDelayMs));
+    const results = await Promise.allSettled(promises);
+
+    // Process results and check for rate limits
+    let hasRateLimit = false;
+    results.forEach((promiseResult, index) => {
+      if (promiseResult.status === 'fulfilled') {
+        const { success, message, precis, error, isRateLimit, retryAfter, quotaInfo } = promiseResult.value;
+        if (success && precis) {
+          result.successful.push({ ...message, precis });
+        } else {
+          result.failed.push({
+            message,
+            error: error || new Error('Processing failed'),
+            isRateLimit: isRateLimit || false
+          });
+        }
+
+        // Check if this was a rate limit error
+        if (isRateLimit) {
+          hasRateLimit = true;
+          if (!result.rateLimitInfo) {
+            result.rateLimitInfo = {
+              quotaExceeded: true,
+              retryAfter: retryAfter,
+              quotaMetric: quotaInfo?.quotaMetric,
+              quotaLimit: quotaInfo?.quotaValue
+            };
+          }
+        }
+      } else {
+        // Promise rejected
+        result.failed.push({
+          message: group[index],
+          error: new Error(`Promise rejected: ${promiseResult.reason}`),
+          isRateLimit: false
+        });
       }
+    });
+
+    // If we hit a rate limit in this group, stop processing further groups
+    if (hasRateLimit) {
+      logger.warn('Rate limit hit in concurrent processing, stopping further processing');
+      break;
+    }
+
+    // Add delay between groups to avoid rate limiting
+    if (groupIndex < groups.length - 1) {
+      logger.info(`Waiting ${emailDelayMs}ms before next group...`);
+      await new Promise(resolve => setTimeout(resolve, emailDelayMs));
     }
   }
 
