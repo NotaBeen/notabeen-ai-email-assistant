@@ -1,4 +1,3 @@
-// components/profile/dialogs/DeleteAccountDialog.tsx
 import React from "react";
 import {
   Dialog,
@@ -9,13 +8,28 @@ import {
   Button,
 } from "@mui/material";
 
-type Props = {
+/**
+ * @typedef {Object} DeleteAccountDialogProps
+ * @property {boolean} open - Controls whether the dialog is open or closed.
+ * @property {() => void} onClose - Function to close the dialog (e.g., triggered by clicking Cancel or outside).
+ * @property {() => void} onConfirm - Function to handle the account deletion logic.
+ */
+type DeleteAccountDialogProps = {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
 };
 
-export function DeleteAccountDialog({ open, onClose, onConfirm }: Props) {
+/**
+ * A confirmation dialog for permanently deleting a user account.
+ * @param {DeleteAccountDialogProps} props - The props for the component.
+ * @returns {JSX.Element} The DeleteAccountDialog component.
+ */
+export function DeleteAccountDialog({
+  open,
+  onClose,
+  onConfirm,
+}: DeleteAccountDialogProps) {
   return (
     <Dialog
       open={open}
@@ -30,11 +44,11 @@ export function DeleteAccountDialog({ open, onClose, onConfirm }: Props) {
       }}
     >
       <DialogTitle id="delete-dialog-title">
-        {"Confirm Account Deletion"}
+        Confirm Account Deletion
       </DialogTitle>
       <DialogContent>
         <DialogContentText id="delete-dialog-description">
-          Are you sure you want to permanently delete your account and all
+          Are you sure you want to **permanently delete** your account and all
           associated data? This action is irreversible.
         </DialogContentText>
       </DialogContent>

@@ -1,7 +1,11 @@
-import { auth0 } from "@/lib/auth0";
+// src\app\api\user\route.ts
 import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 import crypto from "crypto";
+// 🚨 NEW: Import the auth function from your Auth.js config
+import { auth } from "@/auth";
+
+// --- Encryption/Decryption and MongoDB Setup (No Change) ---
 
 const ALGORITHM = "aes-256-gcm";
 if (!process.env.ENCRYPTION_KEY) {
@@ -19,13 +23,11 @@ function encrypt(text: string) {
   const iv = Buffer.from(IV, "utf-8");
   const secretKey = Buffer.from(SECRET_KEY, "utf-8");
 
-  const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv); // Encrypt the text
 
-  // Encrypt the text
   let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
+  encrypted += cipher.final("hex"); // Get the authentication tag
 
-  // Get the authentication tag
   const authTag = cipher.getAuthTag();
 
   return {
@@ -38,9 +40,8 @@ function decrypt(encryptedData: string, authTag: string) {
   const iv = Buffer.from(IV, "utf-8"); // Same IV used during encryption
   const secretKey = Buffer.from(SECRET_KEY, "utf-8");
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv);
+  const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv); // Set the authentication tag
 
-  // Set the authentication tag
   decipher.setAuthTag(Buffer.from(authTag, "hex"));
 
   let decrypted = decipher.update(encryptedData, "hex", "utf8");
@@ -57,26 +58,43 @@ if (!process.env.MONGODB_URI) {
 const client = new MongoClient(process.env.MONGODB_URI);
 const clientPromise = client.connect();
 
+// -------------------------------------------------------------
+
 export async function GET() {
   try {
-    const session = await auth0.getSession();
+    // 🚨 NextAuth Change: Use the new auth() function to get the session
+    const session = await auth(); // 🚨 NextAuth Change: Check for session existence.
 
-    if (!session || !session.user?.sub) {
+    if (!session || !session.user?.id) {
+      // Use ID for robust check
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    // Use the unencrypted NextAuth User ID for deterministic lookup
+    const nextAuthUserId = session.user.id;
+
     const clientConnection = await clientPromise;
     const db = clientConnection.db(collectionName);
-    const collection = db.collection("user");
+    const collection = db.collection("user"); // ✅ FIX 1: Search by the unencrypted NextAuth user ID
 
-    const sub = session.user.sub;
-    const user = await collection.findOne({ sub });
+    const user = await collection.findOne({
+      nextAuthUserId: nextAuthUserId,
+    });
 
     const decryptedUser = user
       ? {
-          ...user,
-          email: decrypt(user.email, user.emailAuthTag),
-          name: user.name ? decrypt(user.name, user.nameAuthTag) : null,
+          // Ensure we use the MongoDB _id from the custom 'user' document
+          _id: user._id, // Decrypt sensitive fields
+          email: user.email ? decrypt(user.email, user.emailAuthTag) : null,
+          name: user.name ? decrypt(user.name, user.nameAuthTag) : null, // Keep other fields
+          subscription: user.subscription,
+          total_emails_analyzed: user.total_emails_analyzed,
+          terms_acceptance: user.terms_acceptance,
+          terms_acceptance_date: user.terms_acceptance_date,
+          created_at: user.created_at,
+          last_login: user.last_login,
+          status: user.status,
+          nextAuthUserId: user.nextAuthUserId,
         }
       : null;
 
@@ -89,7 +107,8 @@ export async function GET() {
         : null;
 
       const newUser = {
-        sub,
+        // ✅ FIX 2: Store the unencrypted NextAuth User ID for future lookups
+        nextAuthUserId: nextAuthUserId,
         email: encryptedEmail.encryptedData,
         emailAuthTag: encryptedEmail.authTag,
         name: encryptedName?.encryptedData || null,
@@ -112,7 +131,13 @@ export async function GET() {
         { ...newUser, _id: insertedId },
         { status: 201 },
       );
-    }
+    } // Update the user's last login
+    // ✅ FIX 3: Update by the unencrypted NextAuth user ID
+
+    await collection.updateOne(
+      { nextAuthUserId: nextAuthUserId },
+      { $set: { last_login: new Date() } },
+    );
 
     return NextResponse.json(decryptedUser, { status: 200 });
   } catch (error) {
@@ -126,17 +151,18 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await auth0.getSession();
+    // 🚨 NextAuth Change: Use the new auth() function
+    const session = await auth(); // 🚨 NextAuth Change: Check for session existence
 
-    if (!session || !session.user?.sub) {
+    if (!session || !session.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
+    const nextAuthUserId = session.user.id;
 
     const clientConnection = await clientPromise;
     const db = clientConnection.db(collectionName);
     const collection = db.collection("user");
-
-    const sub = session.user.sub;
 
     let body;
     try {
@@ -152,15 +178,17 @@ export async function PATCH(req: Request) {
         { message: "Invalid email_preferences format. Must be an array." },
         { status: 400 },
       );
-    }
+    } // ✅ FIX 4: Find by the unencrypted NextAuth user ID
 
-    const userExists = await collection.findOne({ sub });
+    const userExists = await collection.findOne({
+      nextAuthUserId: nextAuthUserId,
+    });
     if (!userExists) {
       return NextResponse.json({ message: "User not found." }, { status: 404 });
-    }
+    } // ✅ FIX 5: Update by the unencrypted NextAuth user ID
 
     const updateResult = await collection.updateOne(
-      { sub },
+      { nextAuthUserId: nextAuthUserId },
       { $set: { email_preferences: emailPreferences } },
     );
 
@@ -169,13 +197,17 @@ export async function PATCH(req: Request) {
         { message: "No changes made to user." },
         { status: 200 },
       );
-    }
+    } // ✅ FIX 6: Find by the unencrypted NextAuth user ID
 
-    const updatedUser = await collection.findOne({ sub });
+    const updatedUser = await collection.findOne({
+      nextAuthUserId: nextAuthUserId,
+    });
     const decryptedUpdatedUser = updatedUser
       ? {
           ...updatedUser,
-          email: decrypt(updatedUser.email, updatedUser.emailAuthTag),
+          email: updatedUser.email
+            ? decrypt(updatedUser.email, updatedUser.emailAuthTag)
+            : null,
           name: updatedUser.name
             ? decrypt(updatedUser.name, updatedUser.nameAuthTag)
             : null,
@@ -194,24 +226,29 @@ export async function PATCH(req: Request) {
 
 export async function DELETE() {
   try {
-    const session = await auth0.getSession();
+    // 🚨 NextAuth Change: Use the new auth() function
+    const session = await auth(); // 🚨 NextAuth Change: Check for session existence
 
-    if (!session || !session.user?.sub) {
+    if (!session || !session.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
+    const nextAuthUserId = session.user.id;
 
     const clientConnection = await clientPromise;
     const db = clientConnection.db(collectionName);
     const userCollection = db.collection("user");
-    const emailsCollection = db.collection("emails");
+    const emailsCollection = db.collection("emails"); // Delete user data
+    // ✅ FIX 7: Delete by the unencrypted NextAuth user ID
 
-    const sub = session.user.sub;
+    const deleteUserResult = await userCollection.deleteOne({
+      nextAuthUserId: nextAuthUserId,
+    }); // Delete all emails associated with this user
+    // ✅ FIX 8: Delete emails by the unencrypted NextAuth user ID (Assuming emails collection uses emailOwner with this ID)
 
-    // Delete user data
-    const deleteUserResult = await userCollection.deleteOne({ sub });
-
-    // Delete all emails associated with this user
-    const deleteEmailsResult = await emailsCollection.deleteMany({ sub });
+    const deleteEmailsResult = await emailsCollection.deleteMany({
+      emailOwner: nextAuthUserId,
+    });
 
     if (deleteUserResult.deletedCount === 0) {
       return NextResponse.json(

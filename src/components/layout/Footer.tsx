@@ -8,16 +8,22 @@ import {
   Stack,
   Link,
 } from "@mui/material";
-
 import React from "react";
 import { footer_links } from "@/lib/constants";
 import Icon from "../ui/Icon";
 
+/**
+ * The Footer component provides site navigation, branding, and legal links.
+ * It is structured into three main parts: Logo/Description, Navigation Links,
+ * and Copyright/Social Media.
+ * @returns {JSX.Element} The Footer component.
+ */
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
     <Box
+      component="footer" // Semantically correct tag
       sx={{
         bgcolor: "background.paper",
         pt: { xs: 8, md: 10 },
@@ -25,7 +31,7 @@ export default function Footer() {
       }}
     >
       <Container maxWidth="lg">
-        {/* Main Flexbox Container */}
+        {/* --- 1. Main Content: Logo/Description and Navigation Links --- */}
         <Box
           sx={{
             display: "flex",
@@ -34,50 +40,61 @@ export default function Footer() {
             justifyContent: "space-between",
           }}
         >
-          {/* Logo and Description Section */}
-          <Box sx={{ mb: { xs: 4, md: 0 } }}>
+          {/* A. Logo and Description Section */}
+          <Box
+            sx={{ mb: { xs: 4, md: 0 }, flexShrink: 0, width: { md: "30%" } }}
+          >
+            {/* Logo and Name (visible on desktop) */}
             <Box
-              sx={{ display: { xs: "none", md: "flex" } }}
+              sx={{ display: { xs: "none", md: "flex" }, alignItems: "center" }}
               component={Link}
               href="/"
               underline="none"
+              color="text.primary"
             >
-              <Typography variant="h6" noWrap sx={{ fontWeight: 500 }}>
+              <Typography variant="h6" noWrap sx={{ fontWeight: 600 }}>
                 <Box
                   component="img"
                   src="/web-app-manifest-512x512.png"
                   alt="NotaBeen Logo"
-                  sx={{ width: 32, height: 32, mr: 1 }}
-                />{" "}
+                  sx={{ width: 32, height: 32, mr: 1, verticalAlign: "middle" }}
+                />
                 NotaBeen
               </Typography>
             </Box>
+            {/* Description */}
             <Typography
               variant="body2"
               sx={{
                 color: "text.secondary",
                 maxWidth: { xs: "100%", sm: "320px" },
-                lineHeight: 1.5,
+                lineHeight: 1.6,
                 mt: 2,
               }}
             >
-              Secure, AI-powered email prioritization to see through email
-              chaos.
+              Secure, AI-powered email prioritization to cut through inbox chaos
+              and boost professional productivity.
             </Typography>
           </Box>
 
-          {/* Navigation Links Section */}
+          {/* B. Navigation Links Section */}
           <Box
             sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: { xs: 4, md: 6 },
+              display: "grid",
+              // Create a responsive 2 or 3 column layout for links
+              gridTemplateColumns: {
+                xs: "repeat(2, 1fr)",
+                sm: "repeat(3, minmax(120px, 1fr))",
+                md: "repeat(3, max-content)", // Max content helps alignment on desktop
+              },
+              gap: { xs: 4, md: 8 },
               justifyContent: { xs: "flex-start", md: "flex-end" },
-              flex: 1, // Allows the links section to grow and take up space
+              flex: 1,
             }}
           >
             {footer_links.routes.map((route) => (
               <Box key={route.title}>
+                {/* Link Group Title */}
                 <Typography
                   variant="subtitle1"
                   sx={{
@@ -89,6 +106,7 @@ export default function Footer() {
                 >
                   {route.title}
                 </Typography>
+                {/* Individual Links */}
                 <Stack spacing={1}>
                   {route.links.map(
                     (link) =>
@@ -98,6 +116,12 @@ export default function Footer() {
                           key={link.title}
                           href={link.url}
                           underline="none"
+                          target={link.url.startsWith("/") ? "_self" : "_blank"} // Open external links in new tab
+                          rel={
+                            link.url.startsWith("/")
+                              ? ""
+                              : "noopener noreferrer"
+                          }
                           sx={{
                             color: "text.secondary",
                             transition: "color 0.2s",
@@ -117,7 +141,7 @@ export default function Footer() {
           </Box>
         </Box>
 
-        {/* Divider */}
+        {/* --- 2. Separator --- */}
         <Divider
           sx={{
             mt: { xs: 6, md: 8 },
@@ -126,49 +150,52 @@ export default function Footer() {
           }}
         />
 
-        {/* Copyright and Social Media Section */}
-        <footer>
-          <Box
+        {/* --- 3. Bottom Row: Copyright and Social Media --- */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: "center",
+            gap: { xs: 3, sm: 0 },
+          }}
+        >
+          {/* Copyright */}
+          <Typography
+            variant="body2"
             sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: "center",
-              gap: { xs: 2, sm: 0 },
+              color: "text.disabled",
+              fontSize: { xs: "0.8rem", sm: "0.875rem" },
+              textAlign: { xs: "center", sm: "left" },
             }}
           >
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.disabled",
-                fontSize: { xs: "0.8rem", sm: "0.875rem" },
-              }}
-            >
-              © {year} NotaBeen. All rights reserved.
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {footer_links.social_media.map((social) => (
-                <Link
-                  href={social.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  key={social.title}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    color: "text.secondary",
-                    transition: "color 0.2s",
-                    "&:hover": {
-                      color: "primary.main",
-                    },
-                  }}
-                >
-                  <Icon icon={social.title} />
-                </Link>
-              ))}
-            </Box>
+            © {year} NotaBeen. All rights reserved. Built with privacy in mind.
+          </Typography>
+          {/* Social Media Icons */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {footer_links.social_media.map((social) => (
+              <Link
+                href={social.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                key={social.title}
+                aria-label={`Link to NotaBeen's ${social.title} page`}
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  color: "text.secondary",
+                  fontSize: 24, // Control icon size
+                  transition: "color 0.2s",
+                  "&:hover": {
+                    color: "primary.main",
+                  },
+                }}
+              >
+                <Icon icon={social.title} />
+              </Link>
+            ))}
           </Box>
-        </footer>
+        </Box>
       </Container>
     </Box>
   );

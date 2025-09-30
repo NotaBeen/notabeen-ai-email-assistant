@@ -1,3 +1,5 @@
+// src\app\dashboard\components\navigation\NavBarSelector.tsx
+
 import React, { useCallback, useMemo } from "react";
 import {
   Box,
@@ -9,7 +11,7 @@ import {
 
 import { Email } from "@/types/interfaces";
 
-// Type definitions remain in the same file
+// Type definitions remain in the same file for now
 export type ExtractedEntities = {
   senderName: string;
   date: string;
@@ -33,15 +35,15 @@ export type NavBarSelectorProps = {
   setMobileOpen?: (open: boolean) => void;
 };
 
-// Add the new filter for archived emails
+// Define all available filters
 const filters = [
   { key: "urgent", label: "Urgent" },
   { key: "important", label: "Important" },
   { key: "canWait", label: "Can Wait" },
   { key: "unsubscribe", label: "Unsubscribe" },
   { key: "unimportant", label: "Unimportant" },
-  { key: "archived", label: "Archived" },
-  { key: "all", label: "All" },
+  { key: "archived", label: "Archived" }, // ✅ Added archived filter
+  { key: "all", label: "All" }, // ✅ Added all filter
 ];
 
 const categoryStyles: {
@@ -49,11 +51,11 @@ const categoryStyles: {
 } = {
   urgent: {
     backgroundColor: "rgba(205, 71, 96, 0.05)",
-    color: "#f08700",
+    color: "#ce4760",
   },
   important: {
     backgroundColor: "rgba(253, 186, 116, 0.1)",
-    color: "#ce4760",
+    color: "#f08700",
   },
   canWait: {
     backgroundColor: "rgba(103, 166, 103, 0.1)",
@@ -67,10 +69,15 @@ const categoryStyles: {
     backgroundColor: "#F5F5F5",
     color: "#9CA3AF",
   },
-  // Add styling for the new archived tab
+  // ✅ Styling for the new archived tab
   archived: {
     backgroundColor: "#F5F5F5",
     color: "#6B7280",
+  },
+  // ✅ Styling for the new all tab
+  all: {
+    backgroundColor: "#F5F5F5",
+    color: "#1F2937",
   },
   default: {
     backgroundColor: "#F9FAFB",
@@ -100,14 +107,15 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
   );
 
   const emailCounts = useMemo(() => {
+    // Separate archived emails for filtering purposes
+    const archivedEmails = emails.filter(
+      (email) => email.userActionTaken === "Archived",
+    );
     const nonArchivedEmails = emails.filter(
       (email) => email.userActionTaken !== "Archived",
     );
-    const archived = emails.filter(
-      (email) => email.userActionTaken === "Archived",
-    );
-    const all = nonArchivedEmails.length; // 'All' now refers to non-archived emails
 
+    // Calculate main filter counts using non-archived emails
     const urgent = nonArchivedEmails.filter(
       (email) => parseInt(email.urgencyScore?.toString() || "0") >= 71,
     );
@@ -136,16 +144,17 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
       canWait: canWait.length,
       unsubscribe: unsubscribe.length,
       unimportant: unimportant.length,
-      archived: archived.length,
-      all: all,
+      archived: archivedEmails.length, // ✅ Archived count
+      all: emails.length, // ✅ 'All' filter now includes ALL emails (archived or not)
     };
     return counts;
   }, [emails]);
 
   // Separate filters into two logical groups to match the UI layout
-  const mainFilters = filters.slice(0, 3);
-  // Add 'archived' and 'all' to the subfilters.
-  const subFilters = filters.slice(3, 7);
+  const mainFilters = filters.slice(0, 3); // Urgent, Important, Can Wait
+  const subFilters = filters.slice(3); // Unsubscribe, Unimportant, Archived, All
+
+  // All UI rendering logic (Mobile Drawer and Desktop Box) correctly maps and renders the `mainFilters` and `subFilters` arrays.
 
   if (isMobile) {
     return (
@@ -205,7 +214,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                     "&:hover": {
                       backgroundColor: "#FBFBFB",
                     },
-                    overflow: "hidden", // Ensures content stays within the box
+                    overflow: "hidden",
                   }}
                 >
                   <Box
@@ -287,7 +296,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                     "&:hover": {
                       backgroundColor: "#FBFBFB",
                     },
-                    overflow: "hidden", // Ensures content stays within the box
+                    overflow: "hidden",
                   }}
                 >
                   <Box
@@ -355,13 +364,13 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
           width: "100%",
           display: "flex",
           alignItems: "flex-end",
+          borderBottom: "1px solid #E5E7EB",
         }}
       >
         {/* First Section: Main Filters */}
         <Box
           sx={{
             display: "flex",
-
             flexWrap: "wrap",
             height: "100%",
             pl: 5,
@@ -397,6 +406,10 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                   borderRight: isActive
                     ? `1px solid ${color}`
                     : "1px solid transparent",
+                  // Remove bottom border to make the active tab connect to the content below
+                  borderBottom: isActive
+                    ? "1px solid #FAFAFA"
+                    : "1px solid #E5E7EB",
                   "&:hover": {
                     backgroundColor: "#FBFBFB",
                   },
@@ -412,7 +425,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                 >
                   <Typography
                     sx={{
-                      fontSize: isMobile ? "1.125rem" : "1rem",
+                      fontSize: "1rem",
                       color: isActive ? color : undefined,
                     }}
                   >
@@ -421,19 +434,19 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                   <Box
                     sx={{
                       color: isActive ? color : undefined,
-                      minWidth: isMobile ? "28px" : "24px",
-                      height: isMobile ? "28px" : "24px",
+                      minWidth: "24px",
+                      height: "24px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: isMobile ? "1rem" : "0.875rem",
+                      fontSize: "0.875rem",
                       fontWeight: 600,
                     }}
                   >
                     {emailCounts[filter.key] > 99 ? (
                       <Typography
                         sx={{
-                          fontSize: isMobile ? "0.875rem" : "0.70rem",
+                          fontSize: "0.70rem",
                           fontWeight: 600,
                         }}
                       >
@@ -456,7 +469,6 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
         <Box
           sx={{
             display: "flex",
-
             flexWrap: "wrap",
             height: "100%",
             pr: 5,
@@ -492,6 +504,10 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                   borderRight: isActive
                     ? `1px solid ${color}`
                     : "1px solid transparent",
+                  // Remove bottom border to make the active tab connect to the content below
+                  borderBottom: isActive
+                    ? "1px solid #FAFAFA"
+                    : "1px solid #E5E7EB",
                   "&:hover": {
                     backgroundColor: "#FBFBFB",
                   },
@@ -507,7 +523,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                 >
                   <Typography
                     sx={{
-                      fontSize: isMobile ? "1.125rem" : "1rem",
+                      fontSize: "1rem",
                       color: isActive ? color : undefined,
                     }}
                   >
@@ -516,19 +532,19 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
                   <Box
                     sx={{
                       color: isActive ? color : undefined,
-                      minWidth: isMobile ? "28px" : "24px",
-                      height: isMobile ? "28px" : "24px",
+                      minWidth: "24px",
+                      height: "24px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: isMobile ? "1rem" : "0.875rem",
+                      fontSize: "0.875rem",
                       fontWeight: 600,
                     }}
                   >
                     {emailCounts[filter.key] > 99 ? (
                       <Typography
                         sx={{
-                          fontSize: isMobile ? "0.875rem" : "0.70rem",
+                          fontSize: "0.70rem",
                           fontWeight: 600,
                         }}
                       >

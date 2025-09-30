@@ -19,6 +19,11 @@ import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import { landing_page_navigation } from "@/lib/constants";
 
+/**
+ * A static page component to display the application's Privacy Policy,
+ * emphasizing GDPR compliance and the use of Google User Data.
+ * @returns {JSX.Element} The PrivacyPolicyPage component.
+ */
 const PrivacyPolicyPage: React.FC = () => {
   return (
     <Box sx={{ bgcolor: "background.paper", minHeight: "100vh" }}>
@@ -46,7 +51,8 @@ const PrivacyPolicyPage: React.FC = () => {
               color: "text.secondary",
             }}
           >
-            How we collect, use, and protect your personal information.
+            How we collect, use, and protect your personal information. Your
+            privacy is our priority.
           </Typography>
           <Box
             sx={{
@@ -60,12 +66,22 @@ const PrivacyPolicyPage: React.FC = () => {
             <Chip
               icon={<VerifiedUserIcon />}
               label="GDPR Compliant"
-              sx={{ bgcolor: "action.hover", color: "text.secondary" }}
+              variant="outlined"
+              sx={{
+                bgcolor: "background.default",
+                color: "text.primary",
+                borderColor: "divider",
+              }}
             />
             <Chip
               icon={<SecurityIcon />}
               label="CASA Tier 2 Security Verified"
-              sx={{ bgcolor: "action.hover", color: "text.secondary" }}
+              variant="outlined"
+              sx={{
+                bgcolor: "background.default",
+                color: "text.primary",
+                borderColor: "divider",
+              }}
             />
           </Box>
           <Divider sx={{ my: 4, borderColor: "divider" }} />
@@ -82,12 +98,15 @@ const PrivacyPolicyPage: React.FC = () => {
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7 }}
           >
-            Welcome to NotaBeen. We are committed to protecting your privacy and
-            personal data. This Privacy Policy explains our practices regarding
-            the collection, use, and protection of your information when you use
-            our services.
+            Welcome to **NotaBeen**. We are committed to protecting your privacy
+            and personal data. This Privacy Policy explains our practices
+            regarding the collection, use, and protection of your information
+            when you use our services.
+          </Typography>
+          <Typography variant="body2" sx={{ color: "text.disabled", mt: 2 }}>
+            Last updated: September 13, 2025
           </Typography>
         </Box>
 
@@ -101,26 +120,39 @@ const PrivacyPolicyPage: React.FC = () => {
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7, mb: 1 }}
           >
             We collect and process the following types of information:
           </Typography>
-          <List>
-            <ListItem sx={{ py: 0.5 }}>
+          <List sx={{ ml: 2, listStyleType: "disc" }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Personal Information: Information you provide directly to us, such as your name and email address when you create an account."
+                primary={
+                  <>
+                    **Personal Information**: Information you provide directly
+                    to us, such as your **name and email address** when you
+                    create an account using an OAuth provider (e.g., Google).
+                  </>
+                }
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Google User Data: With your explicit consent via Google OAuth, we access your Gmail inbox emails to retrieve and prioritize them. For more details on this, see the dedicated section below."
+                primary={
+                  <>
+                    **Google User Data**: With your explicit consent via Google
+                    OAuth, we access your **Gmail inbox emails (read-only)** to
+                    retrieve and prioritize them. For more details, see the
+                    dedicated section below.
+                  </>
+                }
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Usage Data: Non-personal information related to how you use our service, such as browser type, pages visited, and time spent on the site. This data is collected to improve our services and is never linked to your personal identity."
+                primary="**Usage Data**: Non-personal, aggregated information related to how you use our service, such as features accessed and error logs. This data is collected solely to improve our services."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
@@ -137,23 +169,32 @@ const PrivacyPolicyPage: React.FC = () => {
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7 }}
           >
-            <Typography
-              variant="body1"
-              component="span"
-              sx={{ fontWeight: "bold" }}
-            >
-              NotaBeen accesses Gmail inbox emails only with user consent via
-              Google OAuth.
-            </Typography>
-            &nbsp;We use read-only access to retrieve and prioritize emails
-            based on predefined rules. We do not store, share, sell, or transfer
-            Google user data for any purpose other than providing NotaBeen core
-            functionality. NotaBeen access to Gmail data complies with Google
-            Limited Use Policy and is strictly used to improve user-facing
-            features.
+            **NotaBeen accesses Gmail inbox emails only with user consent via
+            Google OAuth using the `gmail.readonly` scope.** We comply with
+            Google’s strict **Limited Use Policy**:
           </Typography>
+          <List sx={{ ml: 2, listStyleType: "disc" }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
+              <ListItemText
+                primary="Your email content is used **only** for providing the core functionality of NotaBeen: prioritizing, summarizing, and displaying emails within the NotaBeen dashboard."
+                sx={{ color: "text.secondary" }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
+              <ListItemText
+                primary="We **do not** store, share, sell, or transfer Google user data for serving advertisements or for any non-service-related purpose."
+                sx={{ color: "text.secondary" }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
+              <ListItemText
+                primary="Access is **read-only**. We cannot send, delete, or modify your emails in Gmail."
+                sx={{ color: "text.secondary" }}
+              />
+            </ListItem>
+          </List>
         </Box>
 
         <Box sx={{ mb: 6 }}>
@@ -166,26 +207,27 @@ const PrivacyPolicyPage: React.FC = () => {
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7, mb: 1 }}
           >
-            We use the information we collect to:
+            We use the information we collect for the following legitimate
+            purposes:
           </Typography>
-          <List>
-            <ListItem sx={{ py: 0.5 }}>
+          <List sx={{ ml: 2, listStyleType: "disc" }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Provide and improve our services, including displaying and prioritizing emails within our dashboard."
+                primary="**Service Provision**: To provide and improve our services, including displaying and prioritizing emails within our dashboard."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Communicate with you about your account, updates, and our services."
+                primary="**Communication**: To communicate with you about your account, service updates, and changes to this policy."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Ensure the security and reliability of our platform."
+                primary="**Security**: To ensure the security and reliability of our platform and prevent fraud."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
@@ -202,43 +244,45 @@ const PrivacyPolicyPage: React.FC = () => {
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7 }}
           >
-            We are fully compliant with GDPR regulations. As a data subject, you
-            have the right to:
+            As a data processor/controller operating in the EU, we are fully
+            compliant with **GDPR** regulations. You have several rights
+            regarding your data:
           </Typography>
-          <List>
-            <ListItem sx={{ py: 0.5 }}>
+          <List sx={{ ml: 2, listStyleType: "disc" }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Access your personal data."
+                primary="**Right to Access**: Obtain a copy of the personal data we hold about you."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Request correction of inaccurate data."
+                primary="**Right to Rectification**: Request correction of inaccurate data."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Request deletion of your data."
+                primary="**Right to Erasure ('Right to be Forgotten')**: Request the deletion of your data. This can be done directly via your Profile settings."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
-            <ListItem sx={{ py: 0.5 }}>
+            <ListItem sx={{ py: 0.5, display: "list-item" }}>
               <ListItemText
-                primary="Revoke consent for data processing at any time."
+                primary="**Right to Withdraw Consent**: Revoke consent for data processing (e.g., Gmail access) at any time."
                 sx={{ color: "text.secondary" }}
               />
             </ListItem>
           </List>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6, mt: 2 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7, mt: 2 }}
           >
-            You can exercise these rights by contacting us at the email address
-            provided below.
+            You can exercise most of these rights directly through your **user
+            profile** in the dashboard. For further assistance, please contact
+            us using the information below.
           </Typography>
         </Box>
 
@@ -248,19 +292,16 @@ const PrivacyPolicyPage: React.FC = () => {
             component="h2"
             sx={{ fontWeight: 700, mb: 2, color: "text.primary" }}
           >
-            6. Changes to this Policy
+            6. Data Security
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7 }}
           >
-            We may update this Privacy Policy periodically. Any changes will be
-            posted on this page with an updated Last Updated date. Your
-            continued use of NotaBeen after any changes indicates your
-            acceptance of the new policy.
-          </Typography>
-          <Typography variant="body2" sx={{ color: "text.disabled", mt: 1 }}>
-            Last updated: September 13, 2025
+            We implement robust technical and organizational measures to protect
+            your personal data against unauthorized access, alteration,
+            disclosure, or destruction. This includes **encryption at rest and
+            in transit**, regular security audits, and strict access controls.
           </Typography>
         </Box>
 
@@ -274,7 +315,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </Typography>
           <Typography
             variant="body1"
-            sx={{ color: "text.secondary", lineHeight: 1.6 }}
+            sx={{ color: "text.secondary", lineHeight: 1.7 }}
           >
             If you have any questions or concerns about this Privacy Policy or
             your data, please contact our Data Protection Officer at:
@@ -283,7 +324,11 @@ const PrivacyPolicyPage: React.FC = () => {
             Email:{" "}
             <Link
               href="mailto:contact@NotaBeen.com"
-              sx={{ color: "primary.main", textDecoration: "none" }}
+              sx={{
+                color: "primary.main",
+                textDecoration: "none",
+                fontWeight: 600,
+              }}
             >
               contact@NotaBeen.com
             </Link>

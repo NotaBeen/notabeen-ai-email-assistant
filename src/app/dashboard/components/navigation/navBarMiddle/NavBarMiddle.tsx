@@ -1,3 +1,4 @@
+// src\app\dashboard\components\navigation\navBarMiddle\NavBarMiddle.tsx
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 
@@ -5,7 +6,8 @@ import EmptyState from "./components/EmptyState";
 import EmailList from "./components/EmailList";
 import { Email } from "@/types/interfaces";
 
-// Type definitions and constants moved from useNavBarMiddle.ts
+// --- Type Definitions and Constants ---
+
 export interface ExtractedEntities {
   senderName: string;
   date: string;
@@ -30,6 +32,8 @@ const URGENCY_THRESHOLDS = {
   IMPORTANT: 41,
   CAN_WAIT: 11,
 } as const;
+
+// --- API Helper Function ---
 
 // API call for updating email actions
 const handleActionUpdateAPI = async (
@@ -82,6 +86,8 @@ const handleActionUpdateAPI = async (
   }
 };
 
+// --- Formatters ---
+
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   const now = new Date();
@@ -110,6 +116,8 @@ const formatTimestamp = (dateString: string): string => {
   return `${month}/${day}/${year}, ${hours}:${minutes} ${ampm}`;
 };
 
+// --- Helpers ---
+
 const getUrgencyScore = (email: Email): number => {
   return parseInt(email.urgencyScore.toString());
 };
@@ -121,10 +129,13 @@ const getCategoryDisplayName = (filter: string): string => {
     important: "Important",
     unsubscribe: "Unsubscribe",
     unimportant: "Unimportant",
+    all: "All Emails", // Added 'all' for completeness
   };
 
   return categoryNames[filter] || filter;
 };
+
+// --- Filtering Hook ---
 
 const useEmailFiltering = (emails: Email[], currentFilter: string) => {
   return useMemo(() => {
@@ -149,8 +160,10 @@ const useEmailFiltering = (emails: Email[], currentFilter: string) => {
         );
       });
 
+      // Filter for emails with an unsubscribe link
       const unsubscribe = emails.filter((email) => !!email.unsubscribeLink);
 
+      // Filter for low score and no unsubscribe link
       const unimportant = emails.filter(
         (email) =>
           getUrgencyScore(email) < URGENCY_THRESHOLDS.CAN_WAIT &&
@@ -174,17 +187,19 @@ const useEmailFiltering = (emails: Email[], currentFilter: string) => {
       case "unimportant":
         return categories.unimportant;
       default:
+        // 'all' filter returns all emails
         return emails;
     }
   }, [emails, currentFilter]);
 };
+
+// --- Main Hook for NavBarMiddle Logic ---
 
 export const useNavBarMiddle = ({
   emails,
   setCurrentEmail,
   currentEmail,
   currentFilter,
-  setMobileOpen,
   setEmails,
 }: NavBarMiddleProps) => {
   const theme = useTheme();
@@ -193,6 +208,7 @@ export const useNavBarMiddle = ({
   const filteredEmails = useEmailFiltering(emails, currentFilter);
 
   const handleUnsubscribe = (unsubscribeLink: string) => {
+    // Open the unsubscribe link in a new tab
     window.open(unsubscribeLink, "_blank");
   };
 
@@ -201,28 +217,31 @@ export const useNavBarMiddle = ({
   };
 
   const handleActionUpdate = async (emailId: string, action: string) => {
-    try {
-      const updatedEmails = emails.map((email) => {
-        if (email._id === emailId) {
-          return { ...email, userActionTaken: action };
-        }
-        return email;
-      });
-
-      setEmails(updatedEmails);
-
-      if (currentEmail && currentEmail._id === emailId) {
-        const updatedCurrentEmail = {
-          ...currentEmail,
-          userActionTaken: action,
-        };
-        setCurrentEmail(updatedCurrentEmail);
+    // Optimistic UI update
+    const updatedEmails = emails.map((email) => {
+      if (email._id === emailId) {
+        return { ...email, userActionTaken: action };
       }
+      return email;
+    });
 
+    setEmails(updatedEmails);
+
+    if (currentEmail && currentEmail._id === emailId) {
+      const updatedCurrentEmail = {
+        ...currentEmail,
+        userActionTaken: action,
+      };
+      setCurrentEmail(updatedCurrentEmail);
+    }
+
+    try {
       await handleActionUpdateAPI(emailId, action);
     } catch (error) {
+      // Revert UI change on failure (Pessimistic update revert)
       const originalEmails = emails.map((email) => {
         if (email._id === emailId) {
+          // Find the original email state before the optimistic update
           const originalEmail = emails.find((e) => e._id === emailId);
           return originalEmail || email;
         }
@@ -237,6 +256,7 @@ export const useNavBarMiddle = ({
       }
 
       console.error("Failed to update email action:", error);
+      // In a production app, you would show a toast/snackbar here.
     }
   };
 
@@ -249,15 +269,18 @@ export const useNavBarMiddle = ({
     formatDate,
     formatTimestamp,
     getCategoryDisplayName,
-    handleActionUpdateAPI,
-    setMobileOpen,
   };
 };
+
+// --- Unused Hook (Kept for context but not part of NavBarMiddle logic) ---
 
 export const useEmailItem = (
   email: Email,
   onActionUpdate?: (emailId: string, action: string) => void,
 ) => {
+  // ... (useEmailItem logic)
+  // This hook is not used by NavBarMiddle and should ideally be in EmailItem or its own file.
+  // It is left here for now as per the user's provided code structure.
   const [showActionDropdown, setShowActionDropdown] = useState(false);
   const [isUpdatingAction, setIsUpdatingAction] = useState(false);
   const [currentAction, setCurrentAction] = useState(
@@ -357,6 +380,8 @@ export const useEmailItem = (
   };
 };
 
+// --- NavBarMiddle Component ---
+
 const NavBarMiddle: React.FC<NavBarMiddleProps> = (props) => {
   const {
     filteredEmails,
@@ -365,14 +390,16 @@ const NavBarMiddle: React.FC<NavBarMiddleProps> = (props) => {
     handleActionUpdate,
     formatDate,
     formatTimestamp,
-    isMobile, // Add isMobile to destructuring
+    isMobile,
   } = useNavBarMiddle(props);
 
-  const { currentEmail, currentFilter } = props; // Add currentFilter to destructuring
+  const { currentEmail, currentFilter } = props;
 
   if (filteredEmails.length === 0) {
     return (
-      <EmptyState onToggleShowArchived={() => {}} hasArchivedEmails={false} />
+      <EmptyState
+      // Removed unused props to align with EmptyState.tsx update
+      />
     );
   }
 
@@ -392,6 +419,7 @@ const NavBarMiddle: React.FC<NavBarMiddleProps> = (props) => {
         onActionUpdate={handleActionUpdate}
         formatDate={formatDate}
         formatTimestamp={formatTimestamp}
+        // ✅ Pass isMobile and currentFilter to enable priority sorting in EmailList
         isMobile={isMobile}
         currentFilter={currentFilter}
       />

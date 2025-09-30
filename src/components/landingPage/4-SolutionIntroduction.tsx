@@ -1,13 +1,22 @@
+// src/components/landingPage/4-SolutionIntroduction.tsx
 import React from "react";
 import { Box, Container, Typography, Paper } from "@mui/material";
+// Import Icons for visual features
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import ShieldIcon from "@mui/icons-material/Shield";
 
+/**
+ * The SolutionIntroduction section introduces the core value propositions
+ * of NotaBeen using three distinct feature cards.
+ * It highlights prioritization, anxiety reduction, and the privacy/open-source aspect.
+ * @returns {JSX.Element} The SolutionIntroduction component.
+ */
 export default function SolutionIntroduction() {
   return (
     <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.default" }}>
       <Container maxWidth="lg">
+        {/* Section Headline */}
         <Typography
           variant="h4"
           component="h2"
@@ -21,6 +30,7 @@ export default function SolutionIntroduction() {
         >
           Meet NotaBeen: Your Personal Inbox Assistant
         </Typography>
+
         {/* Flexbox Container for Cards */}
         <Box
           sx={{
@@ -31,15 +41,15 @@ export default function SolutionIntroduction() {
             alignItems: "stretch",
           }}
         >
-          {/* Stop Sifting, Start Reading */}
+          {/* Card 1: Prioritization */}
           <Paper
-            elevation={2}
+            elevation={3} // Slightly higher elevation for emphasis
             sx={{
               p: { xs: 3, md: 4 },
               textAlign: "center",
-              flex: 1, // Allows the paper to grow and share space equally
-              minWidth: { md: "250px" }, // Prevents cards from getting too small
-              borderRadius: 2,
+              flex: 1,
+              minWidth: { md: "250px" },
+              borderRadius: 3, // Rounded corners
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -64,7 +74,7 @@ export default function SolutionIntroduction() {
               sx={{
                 pb: 1,
                 fontWeight: 700,
-                color: "text.secondary",
+                color: "text.primary", // Use text.primary for card title
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
@@ -73,22 +83,23 @@ export default function SolutionIntroduction() {
             <Typography
               variant="body1"
               color="text.secondary"
-              sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}
+              sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, lineHeight: 1.6 }}
             >
               NotaBeen AI automatically sorts and prioritizes your emails,
-              cutting through the noise so you only see what is important.
+              cutting through the noise so you only see what is important and
+              urgent.
             </Typography>
           </Paper>
 
-          {/* No More Inbox Anxiety */}
+          {/* Card 2: Anxiety Reduction */}
           <Paper
-            elevation={2}
+            elevation={3}
             sx={{
               p: { xs: 3, md: 4 },
               textAlign: "center",
               flex: 1,
               minWidth: { md: "250px" },
-              borderRadius: 2,
+              borderRadius: 3,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -115,31 +126,32 @@ export default function SolutionIntroduction() {
               sx={{
                 pb: 1,
                 fontWeight: 700,
-                color: "text.secondary",
+                color: "text.primary",
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              No More Inbox Anxiety
+              Conquer Inbox Anxiety
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
-              sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}
+              sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              With a clear, organized inbox, you can finally feel in control and
-              stress-free.
+              A clear, organized dashboard replaces the endless scroll of Gmail,
+              allowing you to finally feel in control and stress-free about your
+              communication.
             </Typography>
           </Paper>
 
-          {/* Your Data, Your Way */}
+          {/* Card 3: Privacy and Open Source */}
           <Paper
-            elevation={2}
+            elevation={3}
             sx={{
               p: { xs: 3, md: 4 },
               textAlign: "center",
               flex: 1,
               minWidth: { md: "250px" },
-              borderRadius: 2,
+              borderRadius: 3,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -164,21 +176,20 @@ export default function SolutionIntroduction() {
               sx={{
                 pb: 1,
                 fontWeight: 700,
-                color: "text.secondary",
+                color: "text.primary",
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              Your Data, Your Way
+              Open Source & Private
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
-              sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}
+              sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              Our privacy-first design ensures you control your data. Choose the
-              open-source version to host on your own server for complete
-              control, or opt for our hosted service for a one-time payment and
-              powerful AI without the setup.
+              Our privacy-first design means your data is secure. Choose the
+              self-hosted open-source option for complete control or use our
+              managed service.
             </Typography>
           </Paper>
         </Box>

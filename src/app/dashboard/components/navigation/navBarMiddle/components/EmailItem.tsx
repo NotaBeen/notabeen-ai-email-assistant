@@ -1,3 +1,4 @@
+// src\app\dashboard\components\navigation\navBarMiddle\components\EmailItem.tsx
 import React from "react";
 import {
   Box,
@@ -18,14 +19,20 @@ import { EmailItemProps } from "@/types/interfaces";
 // Helper function to get colors based on urgency
 const getUrgencyColors = (urgencyScore: string | number) => {
   const score = Number(urgencyScore);
+
+  // Adjusted colors for better visual distinction
   if (score >= 71) {
-    return { main: "#EE8802", light: "rgba(205, 71, 96, 0.05)" };
+    // High Urgency (Critical)
+    return { main: "#DC2626", light: "rgba(220, 38, 38, 0.1)" }; // Red
   } else if (score >= 41) {
-    return { main: "#FF5733", light: "rgba(253, 186, 116, 0.1)" };
+    // Medium Urgency (Important)
+    return { main: "#F97316", light: "rgba(249, 115, 22, 0.1)" }; // Orange
   } else if (score >= 11) {
-    return { main: "#808080", light: "rgba(103, 166, 103, 0.1)" };
+    // Low Urgency (Neutral)
+    return { main: "#478978", light: "rgba(59, 130, 246, 0.1)" }; // Blue
   } else {
-    return { main: "#BDBDBD", light: "rgba(156, 163, 175, 0.1)" };
+    // Very Low Urgency (Info/Promotional)
+    return { main: "#3a5683", light: "rgba(156, 163, 175, 0.1)" }; // Light Gray
   }
 };
 
@@ -44,6 +51,10 @@ const EmailItem: React.FC<EmailItemProps> = ({
     email.extractedEntities?.attachmentNames &&
     email.extractedEntities.attachmentNames.length > 0;
 
+  /**
+   * Toggles the archive state of the email.
+   * Prevents click propagation to avoid opening the email content.
+   */
   const handleToggleArchive = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onActionUpdate) {
@@ -52,6 +63,10 @@ const EmailItem: React.FC<EmailItemProps> = ({
     }
   };
 
+  /**
+   * Handles the unsubscribe button click.
+   * Prevents click propagation.
+   */
   const handleUnsubscribeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (email.unsubscribeLink) {
@@ -70,13 +85,16 @@ const EmailItem: React.FC<EmailItemProps> = ({
         justifyContent: "space-between",
         alignItems: "center",
         p: 2,
+        position: "relative", // Needed for the urgency line absolute positioning
         textTransform: "none",
         color: isArchived ? "#9CA3AF" : "inherit",
+        // Background color logic: Selected > Archived > Default
         backgroundColor: isSelected
           ? "#CFE4FA"
           : isArchived
             ? "#FBFBFB"
             : "#F9FAFB",
+        // Border highlights based on selection/urgency
         borderBottom: `1px solid ${isSelected ? main : "#E5E7EB"}`,
         borderRadius: 0,
         boxShadow: isSelected ? "0 4px 8px rgba(0,0,0,0.05)" : "none",
@@ -86,10 +104,10 @@ const EmailItem: React.FC<EmailItemProps> = ({
         },
       }}
     >
-      {/* Urgency Line */}
+      {/* Urgency Line (Visual Indicator on the left edge) */}
       <Box
         sx={{
-          width: "2px",
+          width: "3px", // Slightly thicker line
           height: "100%",
           bgcolor: isArchived ? "#D1D5DB" : main,
           position: "absolute",
@@ -107,9 +125,10 @@ const EmailItem: React.FC<EmailItemProps> = ({
           mr: 2,
           display: "flex",
           flexDirection: "column",
-          gap: 1.5,
+          gap: 0.5, // Reduced gap for tighter layout
         }}
       >
+        {/* Sender and Date */}
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography
             variant="body2"
@@ -127,6 +146,8 @@ const EmailItem: React.FC<EmailItemProps> = ({
             {formatDate(email.dateReceived)}
           </Typography>
         </Stack>
+
+        {/* Subject */}
         <Typography
           variant="subtitle1"
           sx={{
@@ -135,10 +156,13 @@ const EmailItem: React.FC<EmailItemProps> = ({
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            lineHeight: 1.2, // Tighter line height
           }}
         >
           {email.subject}
         </Typography>
+
+        {/* AI Summary */}
         {email.summary && (
           <Stack
             direction="row"
@@ -159,6 +183,7 @@ const EmailItem: React.FC<EmailItemProps> = ({
                 WebkitBoxOrient: "vertical",
                 WebkitLineClamp: 2,
                 textOverflow: "ellipsis",
+                lineHeight: 1.4,
               }}
             >
               {email.summary}
@@ -167,24 +192,28 @@ const EmailItem: React.FC<EmailItemProps> = ({
         )}
       </Box>
 
-      {/* Actions */}
+      {/* Action Icons/Buttons */}
       <Stack
         direction="row"
         spacing={1}
         alignItems="center"
         sx={{ flexShrink: 0 }}
       >
+        {/* Attachments Icon */}
         {hasAttachments && (
           <Tooltip title="View Attachments">
             <IconButton
               size="small"
+              // The attachment icon does not need an onClick, as clicking the item itself opens the view
               sx={{ color: isArchived ? "#D1D5DB" : "#6B7280" }}
               aria-label="view attachments"
+              onClick={(e) => e.stopPropagation()} // Important: stop propagation
             >
               <AttachFileIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}
+        {/* Unsubscribe Button */}
         {email.unsubscribeLink && (
           <Button
             variant="text"
@@ -192,6 +221,8 @@ const EmailItem: React.FC<EmailItemProps> = ({
             sx={{
               textTransform: "none",
               fontSize: "0.75rem",
+              minWidth: "auto",
+              p: 0,
               color: isArchived ? "#9CA3AF" : main,
               "&:hover": {
                 bgcolor: "transparent",
@@ -202,6 +233,7 @@ const EmailItem: React.FC<EmailItemProps> = ({
             Unsubscribe
           </Button>
         )}
+        {/* Archive/Unarchive Toggle */}
         <Tooltip title={isArchived ? "Unarchive" : "Archive"}>
           <IconButton
             onClick={handleToggleArchive}

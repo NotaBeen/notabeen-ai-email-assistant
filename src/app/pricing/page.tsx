@@ -1,3 +1,4 @@
+// src\app\pricing\page.tsx
 "use client";
 
 import React from "react";
@@ -6,12 +7,12 @@ import {
   Container,
   Paper,
   Table,
-  TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
   Typography,
+  TableBody,
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -19,7 +20,6 @@ import Navigation from "@/components/layout/Navigation";
 import PriceCard from "@/components/ui/PriceCard";
 import Footer from "@/components/layout/Footer";
 import { landing_page_navigation } from "@/lib/constants";
-import { loginUrl } from "@/utils";
 
 // ---
 // Define data for pricing plans and features
@@ -33,7 +33,8 @@ const subscriptionPlans = [
     currency: "€",
     duration: "lifetime",
     usage: "Full Control",
-    description: "For professionals who want full control over their data.",
+    description:
+      "For professionals who want full control over their data and prefer self-hosting.",
     features: [
       "AI Email Prioritization",
       "Enhanced Search",
@@ -66,13 +67,15 @@ const subscriptionPlans = [
     duration: "one-time at launch",
     usage: "Unlimited Usage",
     description:
-      "For professionals who want a hassle-free, managed experience. Limited one-time offer!",
+      "For professionals who want a hassle-free, fully managed experience. Limited **free** one-time offer!",
     features: [
       "All Open Source features",
       "Private Cloud Hosting",
       "Full-time Support",
+      "Hassle-free Updates",
     ],
-    subscriptionLink: loginUrl,
+    // This is the link that initiates the authentication process (e.g., Google OAuth)
+    subscriptionLink: "/api/auth/signin",
     buttonText: "Get it Now",
     trialAvailable: false,
     isRecommended: true,
@@ -85,7 +88,7 @@ const subscriptionPlans = [
     visible: true,
     annualPrice: 0,
     approxPerMonth: 0,
-    discount: "100",
+    discount: "100", // 100% discount on the original price (€299)
   },
 ];
 
@@ -97,7 +100,7 @@ const subscriptionFeatures = [
     managedService: true,
   },
   {
-    title: "Enhanced Search",
+    title: "Enhanced Search & Retrieval",
     openSource: true,
     managedService: true,
   },
@@ -122,17 +125,38 @@ const subscriptionFeatures = [
     managedService: true,
   },
   {
-    title: "Full-time Support",
+    title: "Full-time Dedicated Support",
+    openSource: false,
+    managedService: true,
+  },
+  {
+    title: "Hassle-free Updates & Maintenance",
     openSource: false,
     managedService: true,
   },
 ];
 
+/**
+ * The Pricing page component displays the available subscription tiers and a detailed
+ * comparison table of features.
+ * @returns {JSX.Element} The Pricing page.
+ */
 export default function Pricing() {
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "background.default",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Navigation pages={landing_page_navigation} />
-      <Container maxWidth="lg" sx={{ pt: 8, pb: 12, mt: { xs: 2, sm: 4 } }}>
+
+      <Container
+        maxWidth="lg"
+        sx={{ pt: 8, pb: 12, mt: { xs: 2, sm: 4 }, flexGrow: 1 }}
+      >
         {/* Header Section */}
         <Box sx={{ textAlign: "center", mb: { xs: 4, md: 8 } }}>
           <Typography
@@ -157,8 +181,8 @@ export default function Pricing() {
               color: "text.secondary",
             }}
           >
-            Choose the plan that fits your needs, with transparent pricing and
-            no hidden fees.
+            Choose the plan that fits your needs. Get the **Managed Service for
+            free** for a limited time!
           </Typography>
         </Box>
 
@@ -177,9 +201,13 @@ export default function Pricing() {
           {subscriptionPlans
             .filter((subscription) => subscription.visible)
             .map((subscription) => (
-              <Box key={subscription.id} sx={{ flex: 1 }}>
+              <Box
+                key={subscription.id}
+                sx={{ flex: 1, minWidth: { md: 350 } }}
+              >
                 <PriceCard
                   data={subscription}
+                  // These props are largely redundant now but kept for PriceCard type compliance
                   frequency="Lifetime"
                   currency="EUR"
                   rates={{}}
@@ -208,10 +236,11 @@ export default function Pricing() {
           elevation={2}
           sx={{
             borderRadius: 2,
-            overflowX: "auto", // Added to allow horizontal scrolling on small screens
+            overflowX: "auto",
+            border: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Table aria-label="features comparison table">
+          <Table aria-label="features comparison table" sx={{ minWidth: 650 }}>
             <TableHead sx={{ backgroundColor: "action.hover" }}>
               <TableRow>
                 <TableCell
@@ -221,6 +250,7 @@ export default function Pricing() {
                     borderColor: "divider",
                     fontSize: "1rem",
                     color: "text.primary",
+                    width: "50%",
                   }}
                 >
                   Features
@@ -258,12 +288,13 @@ export default function Pricing() {
                     key={title}
                     sx={{
                       "&:last-child td, &:last-child th": { border: 0 },
+                      "&:nth-of-type(odd)": { backgroundColor: "action.hover" },
                     }}
                   >
                     <TableCell
                       component="th"
                       scope="row"
-                      sx={{ color: "text.secondary" }}
+                      sx={{ color: "text.secondary", fontWeight: 500 }}
                     >
                       {title}
                     </TableCell>
@@ -288,7 +319,14 @@ export default function Pricing() {
           </Table>
         </TableContainer>
       </Container>
-      <Box sx={{ backgroundColor: "background.paper", color: "text.primary" }}>
+
+      <Box
+        sx={{
+          backgroundColor: "background.paper",
+          color: "text.primary",
+          flexShrink: 0,
+        }}
+      >
         <Footer />
       </Box>
     </Box>
