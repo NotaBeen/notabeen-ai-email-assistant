@@ -1,22 +1,37 @@
 ---
 name: Pull Request
-about: Propose changes for a new feature or bug fix.
+about: Submit updates for review.
 title: ""
 labels: ""
 ---
 
-### Description
+## Summary
 
-Please include a summary of the changes and the related issue.
+Explain what changed and why. Include links to design docs or context where helpful.
 
-### Checklist
+## Related issues
 
-- [ ] My code follows the project's coding standards.
-- [ ] I have included a clear, concise description of the changes.
-- [ ] I have linked the relevant issue(s) to this PR.
-- [ ] My changes are ready to be reviewed.
+Link the tracking issues using keywords (e.g. `Closes #123`).
 
-### Related Issues
+## Type of change
 
-Please link any issues related to this pull request.
-For example: `Fixes #123` or `Closes #123`.
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Documentation update
+- [ ] Refactor / chore
+- [ ] Other (describe below)
+
+## Testing
+
+- [ ] Tests added or updated
+- [ ] Linting / formatting checks run
+- [ ] Manually verified in the target environment
+
+List the exact commands and/or manual steps executed, plus screenshots when relevant:
+-
+
+## Checklist
+
+- [ ] I read the `CONTRIBUTING.md` guidelines.
+- [ ] I added any necessary documentation.
+- [ ] I ensured this PR is scoped, reviewed, and ready for merge.
