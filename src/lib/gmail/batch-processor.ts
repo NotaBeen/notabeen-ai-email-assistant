@@ -429,26 +429,72 @@ async function generateAndSavePrecis(
     const errorObj = error as Error & {
       status?: number;
       retryAfter?: number;
-      quotaInfo?: { quotaMetric?: string; quotaValue?: string };
+      quotaInfo?: {
+        quotaMetric?: string;
+        quotaValue?: string;
+        quotaLimit?: string;
+        retryDelay?: string;
+      };
     };
 
-    // Check for rate limit errors in SDK responses
-    if (error.message?.includes('rate limit') || error.message?.includes('quota')) {
+    // Parse ApiError JSON response for detailed quota information
+    if (error.message.includes('ApiError') && error.message.includes('429')) {
+      try {
+        // Extract JSON from error message
+        const jsonMatch = error.message.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const errorData = JSON.parse(jsonMatch[0]);
+
+          if (errorData.error) {
+            errorObj.status = errorData.error.code || 429;
+
+            // Extract retry delay from RetryInfo
+            const retryInfo = errorData.error.details?.find((d: any) => d['@type']?.includes('RetryInfo'));
+            if (retryInfo?.retryDelay) {
+              const delayMatch = retryInfo.retryDelay.match(/(\d+)/);
+              if (delayMatch) {
+                errorObj.retryAfter = parseInt(delayMatch[1]) * 1000;
+                errorObj.quotaInfo = {
+                  ...errorObj.quotaInfo,
+                  retryDelay: retryInfo.retryDelay
+                };
+              }
+            }
+
+            // Extract detailed quota information
+            const quotaFailure = errorData.error.details?.find((d: any) => d['@type']?.includes('QuotaFailure'));
+            if (quotaFailure?.violations?.[0]) {
+              const violation = quotaFailure.violations[0];
+              errorObj.quotaInfo = {
+                quotaMetric: violation.quotaMetric || 'unknown',
+                quotaValue: violation.quotaValue || 'unknown',
+                quotaLimit: `${violation.quotaValue} requests`,
+                retryDelay: errorObj.quotaInfo?.retryDelay
+              };
+            }
+
+            // Extract helpful links
+            const helpLink = errorData.error.details?.find((d: any) => d['@type']?.includes('Help'));
+            if (helpLink?.links?.[0]) {
+              errorObj.quotaInfo = {
+                ...errorObj.quotaInfo,
+                helpUrl: helpLink.links[0].url
+              };
+            }
+          }
+        }
+      } catch (parseError) {
+        logger.error('Failed to parse ApiError JSON:', parseError);
+      }
+    }
+
+    // Fallback to regex parsing if JSON parsing fails
+    if (!errorObj.status && (error.message?.includes('rate limit') || error.message?.includes('quota'))) {
       errorObj.status = 429;
 
-      // Try to extract retry information from error message
       const retryMatch = error.message.match(/(\d+(?:\.\d+)?)\s*(?:seconds?|s)/i);
       if (retryMatch) {
         errorObj.retryAfter = parseFloat(retryMatch[1]) * 1000;
-      }
-
-      // Try to extract quota information
-      const quotaMatch = error.message.match(/quota.*?(\w+)/i);
-      if (quotaMatch) {
-        errorObj.quotaInfo = {
-          quotaMetric: 'unknown',
-          quotaValue: quotaMatch[1]
-        };
       }
     }
 

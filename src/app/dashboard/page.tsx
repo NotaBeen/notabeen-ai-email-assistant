@@ -8,6 +8,7 @@ import NavBarTop from "@/app/dashboard/components/navigation/NavBarTop";
 import TermsConditionsPopup from "@/components/popup/TermsConditionsPopup";
 import posthog from "posthog-js";
 import Overview from "./components/screen/overview/Overview";
+import QuotaWarning from "@/components/QuotaWarning";
 import { Email } from "@/types/interfaces";
 
 type CurrentEmail = Email;
@@ -30,6 +31,12 @@ function Dashboard() {
   const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
   const [activeFilter, setActiveFilter] = useState("urgent");
   const [initialRefreshDone, setInitialRefreshDone] = useState(false);
+  const [quotaError, setQuotaError] = useState<{
+    message: string;
+    retryAfter?: number;
+    quotaLimit?: string;
+    helpUrl?: string;
+  } | null>(null);
 
   // Function to fetch user data and terms acceptance
   const fetchUserDataAndVerifyEmail = useCallback(async () => {
@@ -105,11 +112,26 @@ function Dashboard() {
           await getEmails(); // Fetch the new list of emails for display
           posthog.capture("gmail_connected");
           if (isInitialLoad) setInitialRefreshDone(true);
+          // Clear any previous quota errors on success
+          setQuotaError(null);
         } else {
-          console.error("Failed to process emails. Status:", response.status);
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to process emails. Status:", response.status, errorData);
+
           if (response.status === 401) {
             // User's Google token is likely expired/revoked
             await signOut({ callbackUrl: "/" });
+          } else if (response.status === 429 && errorData.rateLimitInfo) {
+            // Handle quota exceeded error
+            setQuotaError({
+              message: errorData.message || "Rate limits exceeded. Please try again later.",
+              retryAfter: errorData.rateLimitInfo.retryAfter,
+              quotaLimit: errorData.rateLimitInfo.quotaLimit,
+              helpUrl: errorData.rateLimitInfo.helpUrl
+            });
+          } else {
+            // Clear quota errors for other types of errors
+            setQuotaError(null);
           }
         }
       } catch (error) {
@@ -197,8 +219,18 @@ function Dashboard() {
           setEmails={setEmails}
           setScreen={setScreen}
           setOverviewOpen={() => {}}
+          quotaExceeded={!!quotaError}
         />
       </Box>
+
+      {quotaError && (
+        <Box sx={{ px: 2, pt: 1 }}>
+          <QuotaWarning
+            quotaError={quotaError}
+            onDismiss={() => setQuotaError(null)}
+          />
+        </Box>
+      )}
 
       {termsAccepted === false && (
         <TermsConditionsPopup onAcceptTerms={handleTermsAccepted} />

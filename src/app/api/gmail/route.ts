@@ -51,6 +51,8 @@ interface RateLimitInfo {
   retryAfter?: number;
   quotaMetric?: string;
   quotaLimit?: string;
+  retryDelay?: string;
+  helpUrl?: string;
 }
 
 interface QueueStats {
@@ -214,8 +216,13 @@ export async function GET(req: NextRequest) {
         message += ` Average wait time: ${Math.round(queueStats.averageWaitTime / 1000)}s.`;
       }
     } else if (rateLimitInfo?.quotaExceeded) {
-      message = `Partial success: ${emails.length} emails processed. Rate limits exceeded. Please try again later.`;
-      if (rateLimitInfo.retryAfter) {
+      message = `Rate limits exceeded. Please try again later.`;
+      if (rateLimitInfo.quotaLimit) {
+        message += ` Quota limit: ${rateLimitInfo.quotaLimit}.`;
+      }
+      if (rateLimitInfo.retryDelay) {
+        message += ` Retry after ${rateLimitInfo.retryDelay}.`;
+      } else if (rateLimitInfo.retryAfter) {
         message += ` Retry in ${Math.ceil(rateLimitInfo.retryAfter / 1000)} seconds.`;
       }
       status = 429; // Too Many Requests

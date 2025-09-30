@@ -42,6 +42,7 @@ export type NavBarTopProps = {
   handleImportEmails?: () => Promise<void>;
   setOverviewOpen: (open: boolean) => void;
   setEmails: (emails: Email[]) => void;
+  quotaExceeded?: boolean;
 };
 
 type UserData = {
@@ -108,6 +109,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
   setScreen,
   handleImportEmails,
   setOverviewOpen,
+  quotaExceeded = false,
 }) => {
   // Authentication: Use NextAuth's session hook
   const { data: session, status } = useSession();
