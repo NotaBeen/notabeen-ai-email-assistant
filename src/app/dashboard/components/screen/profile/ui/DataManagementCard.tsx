@@ -1,4 +1,3 @@
-// components/profile/ui/DataManagementCard.tsx
 import React from "react";
 import {
   Card,
@@ -11,19 +10,32 @@ import {
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 
-type Props = {
+/**
+ * @typedef {Object} DataManagementCardProps
+ * @property {() => void} onExportData - Function to trigger the data export dialog/process.
+ * @property {() => void} onDeleteAccount - Function to trigger the account deletion confirmation dialog.
+ * @property {boolean} isExporting - State flag indicating if data export is currently in progress.
+ * @property {boolean} isDeleting - State flag indicating if account deletion is currently in progress.
+ */
+type DataManagementCardProps = {
   onExportData: () => void;
   onDeleteAccount: () => void;
   isExporting: boolean;
   isDeleting: boolean;
 };
 
+/**
+ * A card component containing actions for managing user data, including export and account deletion,
+ * aligned with data privacy regulations (e.g., GDPR).
+ * @param {DataManagementCardProps} props - The props for the component.
+ * @returns {JSX.Element} The DataManagementCard component.
+ */
 export function DataManagementCard({
   onExportData,
   onDeleteAccount,
   isExporting,
   isDeleting,
-}: Props) {
+}: DataManagementCardProps) {
   return (
     <Card
       variant="outlined"
@@ -47,15 +59,14 @@ export function DataManagementCard({
           <CloudDownloadIcon color="primary" /> Data Management
         </Typography>
 
-        {/* Replaced Grid with a flexbox Box container */}
         <Box
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 2, // Space between buttons and disclaimer
+            gap: 2,
           }}
         >
-          {/* Box for the buttons, arranged in a row on medium screens and up */}
+          {/* Action Buttons */}
           <Box
             sx={{
               display: "flex",
@@ -63,13 +74,14 @@ export function DataManagementCard({
               gap: 2,
             }}
           >
+            {/* Export Button */}
             <Button
               variant="outlined"
               color="primary"
               fullWidth
               startIcon={<CloudDownloadIcon />}
               onClick={onExportData}
-              disabled={isExporting}
+              disabled={isExporting || isDeleting}
               sx={{
                 py: 1.5,
                 borderRadius: "8px",
@@ -84,13 +96,14 @@ export function DataManagementCard({
               )}
             </Button>
 
+            {/* Delete Button */}
             <Button
               variant="outlined"
               color="error"
               fullWidth
               startIcon={<DeleteForeverIcon />}
               onClick={onDeleteAccount}
-              disabled={isDeleting}
+              disabled={isDeleting || isExporting}
               sx={{
                 py: 1.5,
                 borderRadius: "8px",
@@ -99,22 +112,22 @@ export function DataManagementCard({
               }}
             >
               {isDeleting ? (
-                <CircularProgress size={24} />
+                <CircularProgress size={24} sx={{ color: "error.main" }} />
               ) : (
                 "Delete My Account (GDPR)"
               )}
             </Button>
           </Box>
 
-          {/* Box for the disclaimer text */}
+          {/* Disclaimer */}
           <Box>
             <Typography
               variant="caption"
               color="text.secondary"
               sx={{ mt: 1, display: "block", textAlign: "center" }}
             >
-              <strong>Important:</strong> Deleting your account is irreversible
-              and will remove all associated data.
+              **Important:** Deleting your account is irreversible and will
+              remove all associated data.
             </Typography>
           </Box>
         </Box>

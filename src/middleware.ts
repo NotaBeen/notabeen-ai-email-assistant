@@ -1,17 +1,17 @@
+// src/middleware.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth0 } from "./lib/auth0";
 
 const rateLimit = (windowMs: number, max: number) => {
   const requestsMap: Record<string, { count: number; timestamp: number }> = {};
 
   return (req: NextRequest) => {
     const ip = req.headers.get("x-forwarded-for") || "unknown";
-    const currentTime = Date.now();
+    const now = Date.now();
 
     if (!requestsMap[ip]) {
-      requestsMap[ip] = { count: 1, timestamp: currentTime };
+      requestsMap[ip] = { count: 1, timestamp: now };
     } else {
-      const elapsed = currentTime - requestsMap[ip].timestamp;
+      const elapsed = now - requestsMap[ip].timestamp;
 
       if (elapsed < windowMs) {
         requestsMap[ip].count += 1;
@@ -22,7 +22,7 @@ const rateLimit = (windowMs: number, max: number) => {
           );
         }
       } else {
-        requestsMap[ip] = { count: 1, timestamp: currentTime };
+        requestsMap[ip] = { count: 1, timestamp: now };
       }
     }
 
@@ -30,33 +30,13 @@ const rateLimit = (windowMs: number, max: number) => {
   };
 };
 
-const apiLimiter = rateLimit(1 * 60 * 1000, 1000);
+const apiLimiter = rateLimit(60 * 1000, 1000);
 
-export async function middleware(request: NextRequest) {
-  console.log(`Incoming request: ${request.method} ${request.url}`);
+export function middleware(req: NextRequest) {
+  const limited = apiLimiter(req);
+  if (limited) return limited;
 
-  const rateLimitResponse = apiLimiter(request);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
-  }
-
-  const response = await auth0.middleware(request);
-
-  response.headers.set(
-    "Content-Security-Policy",
-    "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;",
-  );
-
-  const contentType = response.headers.get("Content-Type");
-  if (!contentType) {
-    if (request.url.includes("/api/")) {
-      response.headers.set("Content-Type", "application/json; charset=utf-8");
-    } else {
-      response.headers.set("Content-Type", "text/html; charset=utf-8");
-    }
-  }
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

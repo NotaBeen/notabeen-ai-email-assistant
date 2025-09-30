@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { MongoClient } from "mongodb";
+import { MongoClient } from "mongodb"; // Import ObjectId for querying by _id
 import crypto from "crypto";
 
-import { auth0 } from "@/lib/auth0";
+// 🚨 NEW: Import the auth function from your Auth.js config
+import { auth } from "@/auth";
 
 if (!process.env.MONGODB_URI) {
   throw new Error("MONGODB_URI is not defined");
@@ -73,17 +74,23 @@ const collectionName = process.env.MONGO_CLIENT ?? "";
 
 export async function GET() {
   try {
-    const session = await auth0.getSession();
-    if (!session || !session.user?.sub) {
+    // 🚨 NextAuth Change: Use the new auth() function to get the session
+    const session = await auth();
+
+    // 🚨 NextAuth Change: Check for session existence and use session.user.id
+    if (!session || !session.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const emailOwner = session.user.sub;
+    // 🚨 NextAuth Change: Use the NextAuth User ID (MongoDB _id) as the owner identifier
+    // This assumes your email collection was updated to use the NextAuth user ID.
+    const emailOwner = session.user.id;
 
     const clientConnection = await clientPromise;
     const db = clientConnection.db(collectionName);
     const collection = db.collection("emails");
 
+    // 🚨 NextAuth Change: Query using the NextAuth User ID string (which is the MongoDB _id)
     const emails = await collection
       .find({ emailOwner })
       .sort({ received_at: -1 })
@@ -120,7 +127,7 @@ export async function GET() {
           ? decrypt(email.userActionTaken, email.userActionTakenAuthTag)
           : email.userActionTaken;
 
-      // emailOwner is assumed plaintext for querying
+      // emailOwner is assumed plaintext for querying and is the NextAuth User ID
       cleanedEmail.emailOwner = email.emailOwner;
 
       // --- Decrypt and Parse JSON/String-to-Array fields ---

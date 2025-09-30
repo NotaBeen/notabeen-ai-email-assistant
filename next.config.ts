@@ -8,16 +8,6 @@ const nextConfig: NextConfig = {
 
   transpilePackages: ["@mui/material", "@mui/system", "@mui/icons-material"],
 
-  webpack(config) {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@mui/material": "@mui/material",
-      "@mui/system": "@mui/system",
-      "@mui/icons-material": "@mui/icons-material",
-    };
-    return config;
-  },
-
   async headers() {
     return [
       {
@@ -26,10 +16,6 @@ const nextConfig: NextConfig = {
           {
             key: "X-Content-Type-Options",
             value: "nosniff",
-          },
-          {
-            key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self'; style-src 'self' 'https://fonts.googleapis.com' 'https://fonts.gstatic.com'; img-src 'self';`,
           },
           {
             key: "Strict-Transport-Security",

@@ -1,14 +1,32 @@
-// src\prompts\geminiEmailPrecisPrompt.ts
+// src/app/api/gmail/gemini-api/prompts/geminiEmailPrecisPrompt.ts
 
+/**
+ * Interface defining the necessary data fields required to generate the
+ * Gemini email analysis prompt.
+ */
 interface GeminiEmailPrecisPromptOptions {
+  /** The full sender string (e.g., "John Doe <john.doe@example.com>"). */
   sender: string;
+  /** Comma-separated list of recipient strings. */
   recipients: string;
+  /** Indicates if an unsubscribe link was found ("Yes" or "No"). */
   unsubscribeLinkPresent: string;
+  /** JSON array string of attachment filenames (e.g., '["file.pdf"]' or '[]'). */
   attachmentNames: string;
+  /** The email date formatted as a string (e.g., '2025-09-30'). */
   formattedDate: string;
+  /** The plain text body content of the email. */
   text: string;
 }
 
+/**
+ * Generates the highly structured prompt used to instruct the Gemini model
+ * to analyze an email and produce a structured, machine-parsable JSON-like output.
+ * * NOTE: The prompt heavily enforces a strict output format to ensure reliable
+ * downstream parsing, and includes strict rules for PII/GDPR data exclusion.
+ * * @param {GeminiEmailPrecisPromptOptions} options - The data extracted from the email.
+ * @returns {string} The fully constructed prompt string ready for the AI API call.
+ */
 export function generateGeminiEmailPrecisPrompt(
   options: GeminiEmailPrecisPromptOptions,
 ): string {
@@ -32,7 +50,7 @@ Urgency Score: [integer 1–100]
 Action: [Short imperative action in 2–4 words, e.g., "Reply immediately", "Read when free", "Review later"]
 Classification: [One word: Promotional, Notification, Transactional, Personal, Work-Related, Spam]
 Keywords: [comma-separated list of 5-10 most relevant keywords/phrases from the email content]
-ExtractedEntities: { "senderName": "[Sender's Display Name]", "recipientNames": "[Comma-separated list of Recipient Display Names]", "subjectTerms": "[Comma-separated list of key terms from subject line]", "date": "[YYYY-MM-DD format of email date]", "attachmentNames": "[Comma-separated list of attachment filenames, if any]", "snippet": "[Short, representative snippet of email body for preview]" }
+ExtractedEntities: { "senderName": "[Sender's Display Name]", "recipientNames": "[Comma-separated list of Recipient Display Names]", "subjectTerms": "[Comma-separated list of key terms from subject line]", "date": "[YYYY-MM-DD format of email date]", "attachmentNames": "[JSON array of attachment filenames, if any]", "snippet": "[Short, representative snippet of email body for preview]" }
 
 DO NOT:
 - Add any formatting like **bold**, Markdown, or extra spacing.
@@ -68,7 +86,7 @@ Use this context to favor relevance, reduce overload, and surface truly meaningf
     recipientNames: Extract full display names for all listed recipients.
     subjectTerms: Identify the most important 3-5 individual words or short phrases from the email subject line that are descriptive.
     date: Provide the date of the email in YYYY-MM-DD format.
-    attachmentNames: List the exact filenames of any attachments. If no attachments, the value should be an empty string "".
+    attachmentNames: List the exact filenames of any attachments as a JSON array of strings (e.g., ["report.pdf", "image.jpg"]). If no attachments, use an empty JSON array: [].
     snippet: Generate a concise, 15-20 word snippet from the email body that accurately summarizes its core content for quick preview. **Ensure the snippet does not contain any redacted information or placeholders. Focus on crafting a snippet from the unredacted parts.**
 
 Sender Email: ${sender}

@@ -23,10 +23,11 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/Person";
 import HomeIcon from "@mui/icons-material/Home";
 import { useState, useCallback, useEffect } from "react";
-import { useUser } from "@auth0/nextjs-auth0";
+import { useSession, signOut } from "next-auth/react";
 import { Email } from "@/types/interfaces";
 
-// Type definitions moved from useNavBarTop.ts
+// --- Type Definitions ---
+
 export type ExtractedEntities = {
   senderName: string;
   date: string;
@@ -54,7 +55,8 @@ type UserData = {
   created_at: string;
 };
 
-// Custom styled components
+// --- Custom Styled Components (MUI) ---
+
 const ProfileDropdownContainer = styled(Box)({
   position: "relative",
   display: "flex",
@@ -100,12 +102,18 @@ const MenuItemIcon = styled("div")(({ theme }) => ({
   color: theme.palette.text.secondary,
 }));
 
+// --- NavBarTop Component ---
+
 const NavBarTop: React.FC<NavBarTopProps> = ({
   setScreen,
   handleImportEmails,
   setOverviewOpen,
 }) => {
-  const { user } = useUser();
+  // Authentication: Use NextAuth's session hook
+  const { data: session, status } = useSession();
+  const user = session?.user;
+
+  // State
   const [isLoading, setIsLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -113,23 +121,30 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [authError, setAuthError] = useState(false);
 
-  // For responsive design
+  // Responsive design
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("sm"));
 
-  const handleLogout = () => {
-    window.location.href = "/auth/logout";
+  /**
+   * Handles user logout using NextAuth.
+   */
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" });
   };
 
+  /**
+   * Fetches application-specific user data (e.g., subscription info) from the backend.
+   */
   const fetchUserData = useCallback(async () => {
-    if (!user) return;
+    if (status !== "authenticated" || !user) return;
+
     try {
+      // Fetch user data. Relies on the NextAuth session cookie for server authentication.
       const response = await fetch("/api/user", { method: "GET" });
 
       if (response.status === 401) {
-        // If we get a 401 Unauthorized, the auth token has expired
         setAuthError(true);
-        // Delay logout to show error message
+        // Automatically log out after showing error
         setTimeout(() => {
           handleLogout();
         }, 2000);
@@ -143,11 +158,14 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  }, [user]);
+  }, [user, status]);
 
+  // Fetch user data on successful authentication status change
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    if (status === "authenticated") {
+      fetchUserData();
+    }
+  }, [status, fetchUserData]);
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
@@ -161,10 +179,10 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
 
   const handleProfileMenuToggle = () => {
     if (isMobile) {
-      // On mobile, open drawer instead of dropdown
+      // On mobile, show the full drawer
       handleDrawerToggle();
     } else {
-      // On desktop, toggle dropdown
+      // On desktop, toggle the dropdown
       setProfileMenuOpen(!profileMenuOpen);
     }
   };
@@ -178,12 +196,14 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
     handleProfileMenuClose();
   };
 
-  // Enhanced import emails handler with auth check
+  /**
+   * Handles email import with pre-checks for authentication and subscription status.
+   */
   const handleImportWithAuthCheck = async () => {
     if (!handleImportEmails) return;
 
     try {
-      // First check auth status
+      // Fresh auth check before resource-intensive operation
       const authCheck = await fetch("/api/user", { method: "GET" });
       if (authCheck.status === 401) {
         setAuthError(true);
@@ -193,7 +213,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
         return;
       }
 
-      // If auth is valid, check subscription status
+      // Check subscription status
       const currentDate = new Date();
       const subscriptionEndDate = new Date(
         userData?.subscription?.end_date ?? "",
@@ -215,7 +235,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
 
   return (
     <>
-      {/* Auth Error Alert */}
+      {/* Auth Error Alert (Fixed Position) */}
       {authError && (
         <Alert
           severity="error"
@@ -232,7 +252,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
         </Alert>
       )}
 
-      {/* Main Navigation Bar */}
+      {/* Main Navigation Bar (Header) */}
       <Box
         sx={{
           display: "flex",
@@ -270,10 +290,9 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
           </Box>
         </Box>
 
-        {/* Center - Navigation (Desktop only) */}
+        {/* Center - Import Button (Desktop only) */}
         {!isMobile && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* Import Emails Button */}
             {handleImportEmails && (
               <Tooltip title="Import your latest emails">
                 <Button
@@ -312,10 +331,10 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
           </Box>
         )}
 
-        {/* Right side - Profile */}
+        {/* Right side - Profile / Menu Toggle */}
         <Box sx={{ display: "flex", alignItems: "center" }}>
           {isMobile ? (
-            // On mobile, just show hamburger menu
+            // Mobile: Hamburger menu icon
             <IconButton
               edge="end"
               color="inherit"
@@ -329,13 +348,13 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
               <MenuIcon />
             </IconButton>
           ) : (
-            // On desktop, show custom profile dropdown
+            // Desktop: Profile dropdown
             <ClickAwayListener onClickAway={handleProfileMenuClose}>
               <ProfileDropdownContainer>
-                {/* Trigger button */}
+                {/* Profile Trigger Button */}
                 <ProfileTrigger onClick={handleProfileMenuToggle}>
                   <Avatar
-                    src={user?.picture || undefined}
+                    src={user?.image || undefined}
                     alt={user?.name || "User"}
                     sx={{
                       width: 32,
@@ -349,13 +368,13 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
                   />
                 </ProfileTrigger>
 
-                {/* Custom dropdown menu */}
+                {/* Dropdown Menu */}
                 {profileMenuOpen && (
                   <MenuContainer elevation={2}>
-                    {/* User info */}
+                    {/* User Info Section */}
                     <Box sx={{ p: 2, pb: 1.5 }}>
                       <Avatar
-                        src={user?.picture || undefined}
+                        src={user?.image || undefined}
                         alt={user?.name || "User"}
                         sx={{
                           width: 40,
@@ -385,6 +404,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
 
                     <Divider sx={{ my: 1 }} />
 
+                    {/* Menu Links */}
                     <CustomMenuItem
                       onClick={() => handleProfileSelection("overview")}
                     >
@@ -405,6 +425,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
 
                     <Divider sx={{ my: 1 }} />
 
+                    {/* Logout */}
                     <CustomMenuItem
                       onClick={handleLogout}
                       sx={{ color: "error.main" }}
@@ -422,7 +443,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
         </Box>
       </Box>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer (Left-aligned sidebar) */}
       <Drawer
         anchor="left"
         open={drawerOpen}
@@ -437,6 +458,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
         }}
       >
         <List>
+          {/* Logo in Drawer */}
           <ListItem
             sx={{
               mb: 2,
@@ -486,7 +508,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
             </ListItem>
           )}
 
-          {/* User Info */}
+          {/* User Info in Drawer */}
           <ListItem
             sx={{ mb: 2, flexDirection: "column", alignItems: "flex-start" }}
           >
@@ -499,7 +521,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
               }}
             >
               <Avatar
-                src={user?.picture || undefined}
+                src={user?.image || undefined}
                 alt={user?.name || "User"}
                 sx={{ width: 36, height: 36, mr: 2 }}
               />
@@ -526,7 +548,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
 
           <Divider sx={{ mb: 1 }} />
 
-          {/* Import Emails */}
+          {/* Import Emails Button */}
           {handleImportEmails && (
             <ListItem>
               <Button
@@ -560,7 +582,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
             </ListItem>
           )}
 
-          {/* Navigation */}
+          {/* Navigation Items */}
           <ListItem>
             <Button
               onClick={() => {
@@ -619,7 +641,7 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Logout */}
+          {/* Logout Button */}
           <ListItem>
             <Button
               onClick={handleLogout}

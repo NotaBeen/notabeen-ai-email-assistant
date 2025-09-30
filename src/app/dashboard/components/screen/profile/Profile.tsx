@@ -2,20 +2,33 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { Box, Snackbar, Alert, Stack } from "@mui/material";
-import { useUser } from "@auth0/nextjs-auth0";
+import { useSession, signOut } from "next-auth/react";
 import { UserData } from "./ProfileTypes";
+
+// UI Components
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { ProfileHeader } from "./ui/ProfileHeader";
 import { AccountInfoCard } from "./ui/AccountInfoCard";
 import { GdprInfoCard } from "./ui/GdprInfoCard";
 import { OtherActionsCard } from "./ui/OtherActionsCard";
-import { DeleteAccountDialog } from "./dialogs/DeleteAccountDialog";
-import { ExportDataDialog } from "./dialogs/ExportDataDialog";
 import { DataManagementCard } from "./ui/DataManagementCard";
 
+// Dialogs
+import { DeleteAccountDialog } from "./dialogs/DeleteAccountDialog";
+import { ExportDataDialog } from "./dialogs/ExportDataDialog";
+
+/**
+ * The main Profile component handles user data display, state management for loading/actions,
+ * and integration with NextAuth and backend API endpoints.
+ * @returns {JSX.Element} The Profile page component.
+ */
 export default function Profile() {
-  const { user, isLoading: isAuth0Loading } = useUser();
+  const { data: session, status } = useSession();
+  const user = session?.user;
+  const isSessionLoading = status === "loading";
+
   const [userData, setUserData] = useState<UserData | null>(null);
+  // Separate loading state for API calls *after* the session is established
   const [loading, setLoading] = useState(true);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openExportDialog, setOpenExportDialog] = useState(false);
@@ -28,12 +41,15 @@ export default function Profile() {
   });
 
   const fetchUserData = useCallback(async () => {
-    if (!user) {
+    // Only fetch user data if the session is authenticated
+    if (status !== "authenticated" || !user) {
       setLoading(false);
       return;
     }
+
     setLoading(true);
     try {
+      // API call to fetch custom user data and GDPR information
       const res = await fetch("/api/user", { method: "GET" });
       if (res.ok) {
         const data: UserData = await res.json();
@@ -57,18 +73,25 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, status]);
 
+  // Effect hook to run data fetch once the session status is resolved
   useEffect(() => {
-    if (!isAuth0Loading) {
+    if (status !== "loading") {
       fetchUserData();
     }
-  }, [isAuth0Loading, fetchUserData]);
+  }, [status, fetchUserData]);
 
-  const handleLogout = () => {
-    window.location.href = "/auth/logout";
+  /**
+   * Handles the successful deletion of an account, logging the user out afterwards.
+   */
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" });
   };
 
+  /**
+   * Confirms and executes the API call to permanently delete the user's account.
+   */
   const confirmDeleteAccount = async () => {
     setIsDeleting(true);
     setOpenDeleteDialog(false);
@@ -80,6 +103,7 @@ export default function Profile() {
           message: "Account and data successfully deleted. Redirecting...",
           severity: "success",
         });
+        // Redirect after a short delay for the user to see the success message
         setTimeout(handleLogout, 3000);
       } else {
         const errorData = await res.json();
@@ -102,6 +126,10 @@ export default function Profile() {
     }
   };
 
+  /**
+   * Confirms the data export format and initiates the API call to download the data.
+   * @param {"json" | "csv"} format - The requested export format.
+   */
   const confirmExportData = async (format: "json" | "csv") => {
     setIsExporting(true);
     setOpenExportDialog(false);
@@ -110,6 +138,7 @@ export default function Profile() {
         method: "GET",
       });
       if (res.ok) {
+        // Handle file download
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -119,6 +148,7 @@ export default function Profile() {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+
         setSnackbar({
           open: true,
           message: `Data successfully exported as ${format.toUpperCase()}.`,
@@ -145,10 +175,12 @@ export default function Profile() {
     }
   };
 
-  if (isAuth0Loading || loading) {
+  // Show a loading spinner if either the NextAuth session or the custom user data is loading
+  if (isSessionLoading || loading) {
     return <LoadingSpinner />;
   }
 
+  // Get GDPR info for conditional rendering
   const gdprInfo = userData?.gdpr_compliance_information;
 
   return (
@@ -158,9 +190,9 @@ export default function Profile() {
         backgroundColor: "#F2EEEC",
         overflowY: "auto",
         mx: "auto",
-        maxWidth: "900px", // Constrains the width on large screens
-        px: { xs: 2, sm: 3 }, // Adds padding on smaller screens
-        py: { xs: 3, sm: 5 }, // Adds vertical padding
+        maxWidth: "900px", // Constrains the content width
+        px: { xs: 2, sm: 3 },
+        py: { xs: 3, sm: 5 },
       }}
     >
       <ProfileHeader />
@@ -172,9 +204,12 @@ export default function Profile() {
           isExporting={isExporting}
           isDeleting={isDeleting}
         />
+        {/* Only render GDPR card if data is available */}
         {gdprInfo && <GdprInfoCard gdprInfo={gdprInfo} />}
         <OtherActionsCard />
       </Stack>
+
+      {/* Dialogs */}
       <DeleteAccountDialog
         open={openDeleteDialog}
         onClose={() => setOpenDeleteDialog(false)}
@@ -185,6 +220,8 @@ export default function Profile() {
         onClose={() => setOpenExportDialog(false)}
         onConfirm={confirmExportData}
       />
+
+      {/* Snackbar Notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

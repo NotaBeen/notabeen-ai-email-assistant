@@ -1,4 +1,3 @@
-// components/profile/ui/GdprInfoCard.tsx
 import React from "react";
 import {
   Card,
@@ -23,28 +22,42 @@ import {
   GDPRRight,
 } from "../ProfileTypes";
 
-type Props = {
+/**
+ * @typedef {Object} GdprInfoCardProps
+ * @property {GDPRComplianceInformation} gdprInfo - The structured GDPR compliance data.
+ */
+type GdprInfoCardProps = {
   gdprInfo: GDPRComplianceInformation;
 };
 
-// Helper function to render a single accordion section
+// Define the complex type for content that can be passed to renderAccordion
+type AccordionContent =
+  | GDPRComplianceInformation["purposes_of_processing"]
+  | GDPRComplianceInformation["categories_of_personal_data"]
+  | GDPRComplianceInformation["data_recipients"]
+  | GDPRComplianceInformation["data_retention_policy"]
+  | GDPRComplianceInformation["your_gdpr_rights"];
+
+/**
+ * Helper function to render a single collapsible accordion section based on structured GDPR data.
+ * @param {string} title - The title of the accordion.
+ * @param {string} description - The high-level description for the section.
+ * @param {AccordionContent} content - The detailed, structured content for the section.
+ * @returns {JSX.Element} An Accordion component.
+ */
 const renderAccordion = (
   title: string,
   description: string,
-  content:
-    | GDPRComplianceInformation["purposes_of_processing"]
-    | GDPRComplianceInformation["categories_of_personal_data"]
-    | GDPRComplianceInformation["data_recipients"]
-    | GDPRComplianceInformation["data_retention_policy"]
-    | GDPRComplianceInformation["your_gdpr_rights"],
+  content: AccordionContent,
 ) => (
   <Accordion
+    key={title}
     sx={{
       mb: 1,
       boxShadow: "none",
       border: "1px solid rgba(0,0,0,0.05)",
       borderRadius: "8px",
-      "&:before": { display: "none" },
+      "&::before": { display: "none" },
       "&.Mui-expanded": { m: 0 },
     }}
   >
@@ -57,17 +70,19 @@ const renderAccordion = (
       <Typography variant="body2" sx={{ mb: 2 }}>
         {description}
       </Typography>
-      <List dense>
+      <List dense disablePadding>
+        {/* Iterate over content object entries */}
         {Object.entries(content).map(([key, value]) => {
+          // Skip the internal description field
           if (key === "_description") return null;
 
-          // Check if the value is a nested object
+          // Check for nested object structures
           if (typeof value === "object" && value !== null) {
-            // Special handling for nested structures like Categories and Rights
+            // Case 1: Nested structures (Categories and Rights)
             if ("_details" in value) {
               const item = value as GDPRCategoryDetail | GDPRRight;
               return (
-                <Box key={key}>
+                <Box key={key} sx={{ mb: 1.5, pl: 0 }}>
                   <ListItem disablePadding>
                     <ListItemText
                       primary={
@@ -76,16 +91,24 @@ const renderAccordion = (
                         </Typography>
                       }
                       secondary={item._details}
-                      secondaryTypographyProps={{ variant: "caption", ml: 2 }}
+                      secondaryTypographyProps={{
+                        variant: "caption",
+                        ml: 0.5,
+                        display: "block",
+                      }}
                     />
                   </ListItem>
-                  {/* Handle nested fields if they exist */}
+
+                  {/* Handle nested fields list if they exist (e.g., in Categories) */}
                   {"fields" in item && Array.isArray(item.fields) && (
-                    <List dense sx={{ pl: 2 }}>
+                    <List dense sx={{ pl: 1.5 }}>
                       {item.fields.map((field: string) => (
                         <ListItem key={field} disablePadding>
-                          <ListItemIcon sx={{ minWidth: "30px" }}>
-                            <KeyboardArrowRightIcon fontSize="small" />
+                          <ListItemIcon sx={{ minWidth: "24px" }}>
+                            <KeyboardArrowRightIcon
+                              fontSize="small"
+                              color="action"
+                            />
                           </ListItemIcon>
                           <ListItemText
                             primary={field}
@@ -95,11 +118,15 @@ const renderAccordion = (
                       ))}
                     </List>
                   )}
-                  {/* Handle 'how_to_exercise' if it exists */}
+
+                  {/* Handle 'how_to_exercise' if it exists (e.g., in Rights) */}
                   {"how_to_exercise" in item && (
-                    <ListItem disablePadding>
-                      <ListItemIcon sx={{ minWidth: "30px" }}>
-                        <KeyboardArrowRightIcon fontSize="small" />
+                    <ListItem disablePadding sx={{ mt: 1 }}>
+                      <ListItemIcon sx={{ minWidth: "24px" }}>
+                        <KeyboardArrowRightIcon
+                          fontSize="small"
+                          color="action"
+                        />
                       </ListItemIcon>
                       <ListItemText
                         primary={"How to Exercise:"}
@@ -115,18 +142,27 @@ const renderAccordion = (
                 </Box>
               );
             }
-            // Special handling for Data Recipients
+
+            // Case 2: Data Recipients (separate structure)
             if ("name" in value) {
               const item = value as GDPRRecipient;
               return (
                 <ListItem
                   key={key}
                   disablePadding
-                  sx={{ flexDirection: "column", alignItems: "flex-start" }}
+                  sx={{
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    mb: 1.5,
+                  }}
                 >
                   <ListItemText
                     primary={
-                      <Typography variant="body2" fontWeight="bold">
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        sx={{ color: "text.primary" }}
+                      >
                         {item.name}:
                       </Typography>
                     }
@@ -135,15 +171,14 @@ const renderAccordion = (
                         <Typography
                           variant="body2"
                           component="span"
-                          sx={{ ml: 2 }}
+                          sx={{ display: "block", ml: 1.5 }}
                         >
                           Purpose: {item.purpose}
                         </Typography>
-                        <br />
                         <Typography
                           variant="body2"
                           component="span"
-                          sx={{ ml: 2 }}
+                          sx={{ display: "block", ml: 1.5 }}
                         >
                           Data Shared: {item.data_shared}
                         </Typography>
@@ -156,11 +191,11 @@ const renderAccordion = (
             }
           }
 
-          // Default case for simple key-value pairs
+          // Case 3: Default simple key-value pairs (e.g., Purposes, Retention)
           return (
             <ListItem key={key} disablePadding>
-              <ListItemIcon>
-                <KeyboardArrowRightIcon />
+              <ListItemIcon sx={{ minWidth: "30px" }}>
+                <KeyboardArrowRightIcon color="primary" />
               </ListItemIcon>
               <ListItemText
                 primary={
@@ -183,7 +218,12 @@ const renderAccordion = (
   </Accordion>
 );
 
-export function GdprInfoCard({ gdprInfo }: Props) {
+/**
+ * A card component that presents detailed GDPR compliance information in a series of collapsible sections.
+ * @param {GdprInfoCardProps} props - The props for the component.
+ * @returns {JSX.Element} The GdprInfoCard component.
+ */
+export function GdprInfoCard({ gdprInfo }: GdprInfoCardProps) {
   return (
     <Card
       variant="outlined"
@@ -205,8 +245,10 @@ export function GdprInfoCard({ gdprInfo }: Props) {
               color: "primary.main",
             }}
           >
-            <PrivacyTipIcon color="primary" /> GDPR Compliance Information
+            <PrivacyTipIcon color="primary" /> **GDPR Compliance Information**
           </Typography>
+
+          {/* General Note */}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {gdprInfo._note}
           </Typography>
@@ -222,14 +264,18 @@ export function GdprInfoCard({ gdprInfo }: Props) {
                 color: "inherit",
               }}
             >
-              <Box component="span" sx={{ color: "primary.main" }}>
+              <Box
+                component="span"
+                sx={{ color: "primary.main", fontWeight: 600 }}
+              >
                 Privacy Policy
               </Box>
             </a>
             .
           </Typography>
+
+          {/* Dynamic Accordion Sections */}
           <Box sx={{ mt: 3 }}>
-            {/* Render each accordion dynamically */}
             {renderAccordion(
               "1. Purposes of Processing",
               gdprInfo.purposes_of_processing._description,

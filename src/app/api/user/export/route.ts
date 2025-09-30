@@ -1,11 +1,19 @@
 // src/app/api/user/export/route.ts
 
-import { auth0 } from "@/lib/auth0";
-import { NextResponse } from "next/server";
-import { MongoClient, ObjectId } from "mongodb";
-import crypto from "crypto";
+/**
+ * API Route: /api/user/export
+ * Purpose: Provides a complete JSON export of all personal data held for the
+ * authenticated user, along with GDPR Article 15 compliance information.
+ * All encrypted fields are decrypted prior to export.
+ */
 
-// Define interfaces for data structures
+import { NextResponse } from "next/server";
+import { MongoClient, ObjectId, Document } from "mongodb";
+import crypto from "crypto";
+import { auth } from "@/auth"; // NextAuth's server-side session function
+
+// --- Type Definitions ---
+
 interface UserSettings {
   theme: "light" | "dark";
   language: string;
@@ -17,9 +25,11 @@ interface UserSubscription {
   start_date: Date;
 }
 
-interface UserDocument {
-  _id: ObjectId;
-  sub: string;
+// User Document structure as stored in MongoDB
+interface UserDocument extends Document {
+  _id: ObjectId; // MongoDB native ID
+  nextAuthUserId: string; // The ID from session.user.id (lookup key)
+  sub?: string; // Legacy Auth0 ID (optional)
   email?: string;
   emailAuthTag?: string;
   name?: string;
@@ -36,10 +46,14 @@ interface UserDocument {
   roles?: string[];
 }
 
+// Decrypted Data structure returned to the user
 interface DecryptedUserData {
-  sub: string;
+  _id: ObjectId;
+  nextAuthUserId: string;
+  sub?: string;
   email?: string;
   name?: string;
+  settings?: UserSettings;
   subscription?: UserSubscription;
   total_emails_analyzed?: number;
   cookie_acceptance?: boolean;
@@ -48,9 +62,19 @@ interface DecryptedUserData {
   terms_acceptance_date?: Date | null;
   created_at?: Date;
   last_login?: Date;
+  roles?: string[];
 }
 
-// Decryption function
+// --- Decryption Function ---
+
+/**
+ * Decrypts data using AES-256-GCM.
+ * @param {string} encryptedData - The hex-encoded encrypted data string.
+ * @param {string} authTag - The hex-encoded authentication tag string.
+ * @param {Buffer} secretKey - The 32-byte secret key buffer.
+ * @param {Buffer} iv - The 12-byte IV buffer.
+ * @returns {string} The decrypted UTF-8 string.
+ */
 function decrypt(
   encryptedData: string,
   authTag: string,
@@ -65,21 +89,21 @@ function decrypt(
   return decrypted;
 }
 
+// --- Main GET Handler ---
+
 /**
  * Handles GET requests to export user data for GDPR compliance.
- *
- * This endpoint verifies the user's session, fetches their data from MongoDB,
- * decrypts sensitive fields, and returns a comprehensive JSON object
- * including the user's data and GDPR-related information.
+ * @returns {Promise<NextResponse>} The JSON response containing the user's data and GDPR information.
  */
-export async function GET() {
-  // Check for required environment variables inside the handler
+export async function GET(): Promise<NextResponse> {
   const MONGODB_URI = process.env.MONGODB_URI;
   const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
   const ENCRYPTION_IV = process.env.ENCRYPTION_IV;
-  const collectionName = process.env.MONGO_CLIENT ?? "";
+  const COLLECTION_NAME = process.env.MONGO_CLIENT ?? "";
 
+  // 1. Configuration Validation
   if (!MONGODB_URI || !ENCRYPTION_KEY || !ENCRYPTION_IV) {
+    console.error("Missing required environment variables for export route.");
     return NextResponse.json(
       {
         message:
@@ -89,8 +113,9 @@ export async function GET() {
     );
   }
 
-  // Ensure keys are of correct length
+  // Ensure keys are of correct length before converting
   if (ENCRYPTION_KEY.length !== 32 || ENCRYPTION_IV.length !== 12) {
+    console.error("Invalid encryption key or IV length.");
     return NextResponse.json(
       {
         message:
@@ -104,36 +129,34 @@ export async function GET() {
   const SECRET_KEY = Buffer.from(ENCRYPTION_KEY, "utf-8");
   const IV = Buffer.from(ENCRYPTION_IV, "utf-8");
 
+  let client: MongoClient | null = null;
   try {
-    // Session and Authorization Check
-    const session = await auth0.getSession();
-    if (!session || !session.user?.sub) {
+    // 2. Session and Authorization Check
+    const session = await auth();
+    if (!session || !session.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const client = new MongoClient(MONGODB_URI);
+    // 3. Database Connection and Fetch
+    client = new MongoClient(MONGODB_URI);
     await client.connect();
-    const db = client.db(collectionName);
+    const db = client.db(COLLECTION_NAME);
     const collection = db.collection<UserDocument>("user");
-    const sub = session.user.sub;
-    const user = await collection.findOne({ sub });
-    await client.close();
+
+    // Use the NextAuth User ID for lookup
+    const nextAuthUserId = session.user.id;
+    const user = await collection.findOne({ nextAuthUserId });
 
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Decrypt sensitive data and construct the final response object
+    // 4. Decryption and Data Construction
     const decryptedUserData: DecryptedUserData = {
+      _id: user._id,
+      nextAuthUserId: user.nextAuthUserId,
       sub: user.sub,
-      email:
-        user.email && user.emailAuthTag
-          ? decrypt(user.email, user.emailAuthTag, SECRET_KEY, IV)
-          : user.email,
-      name:
-        user.name && user.nameAuthTag
-          ? decrypt(user.name, user.nameAuthTag, SECRET_KEY, IV)
-          : user.name,
+      settings: user.settings,
       subscription: user.subscription,
       total_emails_analyzed: user.total_emails_analyzed,
       cookie_acceptance: user.cookie_acceptance,
@@ -142,14 +165,26 @@ export async function GET() {
       terms_acceptance_date: user.terms_acceptance_date,
       created_at: user.created_at,
       last_login: user.last_login,
+      roles: user.roles,
+      // Decrypt sensitive fields if they exist
+      email:
+        user.email && user.emailAuthTag
+          ? decrypt(user.email, user.emailAuthTag, SECRET_KEY, IV)
+          : undefined,
+      name:
+        user.name && user.nameAuthTag
+          ? decrypt(user.name, user.nameAuthTag, SECRET_KEY, IV)
+          : undefined,
     };
 
-    // --- ADDING GDPR REQUIRED INFORMATION TO THE JSON ---
+    // 5. GDPR Compliance Information (No changes to the policy text needed, only structural inclusion)
     const gdprInformation = {
       // 1. Purposes of the processing
       purposes_of_processing: {
         _description:
           "Explains the specific purposes for which each category of your personal data is collected and processed by 'NotaBeen'.",
+        nextAuthUserId:
+          "To uniquely identify your user document within the custom 'user' collection and maintain data integrity, linking it to your session and NextAuth provider record.",
         email:
           "To uniquely identify you, enable secure access to your account, facilitate essential communications (e.g., password resets, service updates), and manage your preferences.",
         name: "To personalize your user experience within the application (e.g., addressing you by name).",
@@ -179,7 +214,12 @@ export async function GET() {
           "A classification of the types of personal data we process about you.",
         identification_data: {
           _details: "Data used to directly identify you.",
-          fields: ["email", "name", "sub (Auth0 user ID)"],
+          fields: [
+            "email",
+            "name",
+            "nextAuthUserId (NextAuth User ID)",
+            "sub (Legacy Auth0 ID)",
+          ],
         },
         account_management_data: {
           _details: "Information related to your account setup and status.",
@@ -203,15 +243,16 @@ export async function GET() {
         },
       },
 
-      // 3. Recipients or categories of recipient to whom the personal data have been or will be disclosed
+      // 3. Recipients or categories of recipient
       data_recipients: {
         _description:
           "Third-party entities with whom your personal data may be shared.",
         authentication_provider: {
-          name: "Auth0",
+          name: "NextAuth.js (via Google Provider)",
           purpose:
             "Identity and access management (for secure login and user authentication).",
-          data_shared: "'sub', 'email', 'name'.",
+          data_shared:
+            "'nextAuthUserId', 'email', 'name', and associated access/refresh tokens.",
         },
         database_service: {
           name: "MongoDB Atlas",
@@ -226,20 +267,20 @@ export async function GET() {
         },
       },
 
-      // 4. The period for which the personal data will be stored, or criteria used to determine that period
+      // 4. Data Retention Policy
       data_retention_policy: {
         _description: "Details on how long your personal data is stored.",
         active_account_retention:
           "Your personal data is retained for the entire duration that your 'NotaBeen' account remains active.",
         post_account_deletion_retention:
-          "Upon receiving an account deletion request, your identifiable personal data (including email, name, and sub) will be permanently erased from our active databases within 30 days. This 30-day period allows for recovery in case of accidental deletion and ensures proper system synchronization.",
+          "Upon receiving an account deletion request, your identifiable personal data (including email, name, and ID) will be permanently erased from our active databases within 30 days. This 30-day period allows for recovery in case of accidental deletion and ensures proper system synchronization.",
         anonymized_data_retention:
           "After the deletion period, certain usage statistics (e.g., 'total_emails_analyzed') may be retained in an anonymized or aggregated form for analytical purposes, where they can no longer be linked to your identity.",
         legal_and_legitimate_interest_retention:
           "Some data may be retained for longer periods if required by legal obligations (e.g., tax, audit) or for legitimate business interests (e.g., dispute resolution, fraud prevention). In such cases, data will be pseudonymized or anonymized where feasible and only retained for as long as strictly necessary.",
       },
 
-      // 5. Existence of other data subject rights
+      // 5. Data Subject Rights
       your_gdpr_rights: {
         _description:
           "A summary of your rights under the General Data Protection Regulation (GDPR) and how to exercise them.",
@@ -301,7 +342,7 @@ export async function GET() {
       source_of_personal_data: {
         _description: "Information about where your personal data originated.",
         identity_data_source:
-          "Your 'sub' (Auth0 user ID), 'email', and 'name' are provided to us by Auth0, which acts as our identity provider when you log in using your Google account.",
+          "Your 'nextAuthUserId', 'email', and 'name' are provided to us by the identity provider (e.g., Google), facilitated through the **NextAuth.js** library and its associated MongoDB adapter.",
         direct_collection:
           "All other data (e.g., settings, subscription details, usage data like 'total_emails_analyzed', 'email_interaction_weights', consent records) is collected directly from your interactions with our 'NotaBeen' application and the information you provide within it.",
       },
@@ -325,6 +366,7 @@ export async function GET() {
       },
     };
 
+    // 6. Final Response
     return NextResponse.json(
       {
         data: decryptedUserData,
@@ -338,5 +380,10 @@ export async function GET() {
       { message: "Internal server error", error: (error as Error).message },
       { status: 500 },
     );
+  } finally {
+    // 7. Ensure connection is closed
+    if (client) {
+      await client.close();
+    }
   }
 }

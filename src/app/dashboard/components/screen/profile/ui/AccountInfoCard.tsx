@@ -1,16 +1,26 @@
-// components/profile/ui/AccountInfoCard.tsx
 import React from "react";
 import { Card, CardContent, Box, Typography } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
-import { useUser } from "@auth0/nextjs-auth0";
+// Import the necessary Session type from next-auth
+import { Session } from "next-auth";
 import { UserData } from "../ProfileTypes";
 
-type Props = {
+/**
+ * @typedef {Object} AccountInfoCardProps
+ * @property {UserData | null} userData - Custom application-specific user data.
+ * @property {Session["user"] | undefined} user - The user object from the NextAuth session.
+ */
+type AccountInfoCardProps = {
   userData: UserData | null;
-  user: ReturnType<typeof useUser>["user"] | undefined;
+  user: Session["user"] | undefined;
 };
 
-export function AccountInfoCard({ userData, user }: Props) {
+/**
+ * A display card for essential user account information, primarily showing the email address.
+ * @param {AccountInfoCardProps} props - The props for the component.
+ * @returns {JSX.Element} The AccountInfoCard component.
+ */
+export function AccountInfoCard({ userData, user }: AccountInfoCardProps) {
   return (
     <Card
       variant="outlined"
@@ -35,15 +45,20 @@ export function AccountInfoCard({ userData, user }: Props) {
             <EmailIcon color="primary" /> Account Information
           </Typography>
 
-          {/* Replaced Grid with a single Box */}
+          {/* Email Display */}
           <Box sx={{ display: "flex", alignItems: "center", mb: 1, gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ flexShrink: 0 }}
+            >
               Email:
             </Typography>
             <Typography
               variant="body1"
               sx={{ fontWeight: "medium", wordBreak: "break-word" }}
             >
+              {/* Prioritize custom userData email, fall back to session user email */}
               {userData?.email || user?.email || "N/A"}
             </Typography>
           </Box>

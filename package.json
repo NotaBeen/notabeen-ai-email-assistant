@@ -17,7 +17,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@auth0/nextjs-auth0": "^4.9.0",
+    "@auth/mongodb-adapter": "^3.10.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/server": "^11.11.0",
@@ -33,6 +33,7 @@
     "googleapis": "^159.0.0",
     "mongodb": "^6.19.0",
     "next": "^15.5.2",
+    "next-auth": "^5.0.0-beta.29",
     "posthog-js": "^1.261.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

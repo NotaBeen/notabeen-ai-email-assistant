@@ -1,16 +1,16 @@
+// src\app\dashboard\components\navigation\navBarMiddle\components\EmptyState.tsx
+
 import React from "react";
 import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Mail as MailIcon } from "@mui/icons-material";
 
-// The props for this component seem unused in the original code,
-// but they are kept here for potential future use.
-interface EmptyStateProps {
-  onToggleShowArchived: () => void;
-  hasArchivedEmails: boolean;
-}
+// Props are removed as they were noted as unused in the original code,
+// simplifying the component to its core purpose: display.
+// If future functionality requires them, they can be re-introduced.
 
-const EmptyState: React.FC<EmptyStateProps> = () => {
+const EmptyState: React.FC = () => {
   const theme = useTheme();
+  // Check if the current viewport size is mobile (less than 'md' breakpoint)
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   return (
@@ -22,8 +22,9 @@ const EmptyState: React.FC<EmptyStateProps> = () => {
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "column",
-        p: isMobile ? 2 : 0,
-        color: "#9CA3AF",
+        p: isMobile ? 4 : 0, // Add more padding on mobile
+        color: "#9CA3AF", // Text color: gray
+        backgroundColor: "background.paper",
       }}
     >
       <MailIcon
@@ -35,20 +36,21 @@ const EmptyState: React.FC<EmptyStateProps> = () => {
       <Typography
         sx={{
           fontSize: isMobile ? "1.25rem" : "1.125rem",
-          fontWeight: 500,
+          fontWeight: 600, // Slightly bolder for prominence
           textAlign: "center",
         }}
       >
-        No emails in this category
+        All clear! No emails in this category.
       </Typography>
       <Typography
         sx={{
           fontSize: isMobile ? "1rem" : "0.875rem",
           mt: 1,
           textAlign: "center",
+          px: 2,
         }}
       >
-        Check back later or try refreshing your inbox
+        Try selecting a different filter or check back later.
       </Typography>
     </Box>
   );

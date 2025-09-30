@@ -1,19 +1,28 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// src\app\api\gmail\individual-email\route.ts
+
+export const runtime = "nodejs";
 
 import { NextResponse, NextRequest } from "next/server";
 import axios from "axios";
+// 🗑️ REMOVED: MongoClient, ObjectId imports as they are no longer needed
+// import { MongoClient, ObjectId } from "mongodb";
 import { CustomError, handleApiError } from "@/utils/errorHandler";
 import { logger } from "@/utils/logger";
 import { decodeBase64Url } from "@/utils/crypto";
-import { validateUserSession } from "@/utils/auth";
+// 🚨 NextAuth Change: Import the new auth function
+import { auth } from "@/auth";
 
-// --- Auth0 Environment Variables ---
-const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
-const CLIENT_ID = process.env.AUTH0_CLIENT_ID;
-const CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET;
-const AUDIENCE = `https://${AUTH0_DOMAIN}/api/v2/`;
+// 🗑️ REMOVED: MongoDB Setup
+/*
+const uri = process.env.MONGODB_URI ?? "";
+const collectionName = process.env.MONGO_CLIENT ?? "";
+const client = new MongoClient(uri);
+const clientPromise = uri
+  ? client.connect()
+  : Promise.reject(new Error("MONGODB_URI is not defined"));
+*/
 
-// Interface for the attachment data structure
+// Interface for the attachment data structure returned to the frontend
 interface Attachment {
   filename: string;
   mimeType: string;
@@ -22,56 +31,40 @@ interface Attachment {
   partId?: string; // Add partId to the interface
 }
 
-// Function to get a management API token from Auth0
-async function getManagementApiToken(): Promise<string> {
-  try {
-    const response = await axios.post(`https://${AUTH0_DOMAIN}/oauth/token`, {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      audience: AUDIENCE,
-      grant_type: "client_credentials",
-      scope: "read:users",
-    });
-    return response.data.access_token;
-  } catch (error) {
-    logger.error("Error fetching Management API token:", error);
-    throw new CustomError("Failed to get Management API token", 500, false);
-  }
+// Interface for the recursive structure of a Gmail API message payload part
+interface MessagePart {
+  partId?: string;
+  mimeType?: string;
+  filename?: string;
+  body?: {
+    data?: string;
+    attachmentId?: string;
+    size?: number;
+  };
+  parts?: MessagePart[];
 }
 
-interface UserProfile {
-  identities?: { access_token?: string }[];
-}
-
-// Function to fetch the user's profile from Auth0
-// REMOVED 'export' keyword
-async function fetchUserProfile(
-  managementToken: string,
-  userId: string,
-): Promise<UserProfile> {
-  const url = `https://${AUTH0_DOMAIN}/api/v2/users/${userId}`;
-  try {
-    const response = await axios.get(url, {
-      headers: { Authorization: `Bearer ${managementToken}` },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-    throw new Error("Failed to fetch user profile");
+// 🚨 NextAuth Change: Validate session using NextAuth auth() function
+async function validateUserSession() {
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new CustomError("Unauthorized: Session or User ID is missing.", 401);
   }
+  return session;
 }
 
 // Corrected: Recursive function to parse email payload and fetch attachments
 async function processEmailPayload(
-  payload: any,
+  payload: MessagePart,
 ): Promise<{ body: string; attachments: Attachment[] }> {
   let rawBodyHtml = "";
   let rawBodyPlain = "";
   const attachments: Attachment[] = [];
 
-  const extractParts = (part: any) => {
+  const extractParts = (part: MessagePart) => {
     // If the part has a filename, it's an attachment
-    if (part?.filename) {
+    if (part?.filename && part.mimeType) {
+      // Ensure mimeType exists
       // Check if it's an attachment that requires a separate fetch
       if (part?.body?.attachmentId) {
         attachments.push({
@@ -104,7 +97,7 @@ async function processEmailPayload(
     extractParts(payload);
   }
 
-  const body = rawBodyPlain || rawBodyHtml;
+  const body = rawBodyHtml || rawBodyPlain; // Prefer HTML body if available
 
   return { body, attachments };
 }
@@ -134,14 +127,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await validateUserSession();
 
-    if (!session.tokenSet.accessToken) {
-      throw new CustomError(
-        "Unauthorized: Access token missing from session.",
-        401,
-      );
-    }
-
-    const userId = session.user?.sub;
+    // 🚨 NextAuth Change: Use session.user.id
+    const userId = session.user?.id;
     if (!userId) {
       throw new CustomError("Invalid session data: User ID is missing.", 400);
     }
@@ -156,13 +143,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const managementToken = await getManagementApiToken();
-    const userProfile = await fetchUserProfile(managementToken, userId);
-    const idpAccessToken = userProfile.identities?.[0]?.access_token;
+    // Define the expected session type for type safety
+    interface AuthSession {
+      user?: { id?: string };
+      googleAccessToken?: string;
+    }
+    const typedSession = session as AuthSession;
+    const idpAccessToken = typedSession.googleAccessToken;
 
     if (!idpAccessToken) {
+      logger.warn(
+        `Google access token not found in session for user: ${userId}.`,
+      );
       return NextResponse.json(
-        { message: "Google access token not found in user's profile." },
+        {
+          message:
+            "Google access token not found. Please re-authenticate with Google.",
+        },
         { status: 400 },
       );
     }

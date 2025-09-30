@@ -1,12 +1,21 @@
+// src/components/landingPage/5-ShowExpertise.tsx
 import { Typography, Box, Paper, Container } from "@mui/material";
 import React from "react";
+// Import Icons for visual features
 import SecurityIcon from "@mui/icons-material/Security";
 import SettingsIcon from "@mui/icons-material/Settings";
 
+/**
+ * The ShowExpertise section focuses on the project's foundational principles:
+ * privacy, user control, and the open-source nature. This builds trust and
+ * highlights the product's ethical approach to AI and data handling.
+ * @returns {JSX.Element} The ShowExpertise component.
+ */
 function ShowExpertise() {
   return (
-    <Box sx={{ py: { xs: 6, md: 12 }, bgcolor: "background.default" }}>
+    <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.default" }}>
       <Container maxWidth="lg">
+        {/* --- Section Header --- */}
         <Box sx={{ textAlign: "center" }}>
           <Typography
             variant="h4"
@@ -24,16 +33,19 @@ function ShowExpertise() {
             variant="body1"
             sx={{
               color: "text.secondary",
-              mb: { xs: 4, md: 10 },
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              mb: { xs: 6, md: 10 },
+              fontSize: { xs: "1rem", sm: "1.1rem" },
+              maxWidth: "800px",
+              mx: "auto",
             }}
           >
             We believe in creating a product that prioritizes user control and
-            privacy above all else.
+            privacy above all else. That is why we built NotaBeen as an
+            open-source project.
           </Typography>
         </Box>
 
-        {/* Flexbox container for the two cards */}
+        {/* --- Feature Cards Container --- */}
         <Box
           sx={{
             display: "flex",
@@ -43,15 +55,15 @@ function ShowExpertise() {
             alignItems: "stretch",
           }}
         >
-          {/* Smart AI, Uncompromised Privacy Section */}
+          {/* Card 1: Privacy and Security */}
           <Paper
-            elevation={2}
+            elevation={3}
             sx={{
               p: { xs: 3, md: 6 },
               textAlign: "center",
-              flex: 1, // Allows the paper to grow and share space equally
-              minWidth: { md: "350px" }, // Prevents card from getting too small
-              borderRadius: 2,
+              flex: 1, // Equal width for both cards
+              minWidth: { md: "350px" },
+              borderRadius: 3,
             }}
           >
             <Box
@@ -60,7 +72,7 @@ function ShowExpertise() {
                 color: "primary.contrastText",
                 borderRadius: "50%",
                 p: 2,
-                mb: 2,
+                mb: 3,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -70,10 +82,11 @@ function ShowExpertise() {
             </Box>
             <Typography
               variant="h5"
+              component="h3"
               sx={{
                 fontWeight: 700,
                 mb: 1,
-                color: "text.secondary",
+                color: "text.primary",
                 fontSize: { xs: "1.2rem", md: "1.5rem" },
               }}
             >
@@ -84,26 +97,25 @@ function ShowExpertise() {
               sx={{
                 color: "text.secondary",
                 lineHeight: 1.6,
-                fontSize: { xs: "0.9rem", md: "1rem" },
+                fontSize: { xs: "0.95rem", md: "1rem" },
               }}
             >
-              We built a powerful AI to manage your inbox, and we have put you
-              in control. With our self-hosted option, your AI runs on your own
-              server, so your data is never used to train our models. With our
-              hosted version, your data is processed with the highest security
-              standards and never sold to third parties.
+              Whether you use the self-hosted open-source version (where your AI
+              runs on your own server) or our managed service, your data is
+              processed with the highest security standards and never used to
+              train models or sold to third parties.
             </Typography>
           </Paper>
 
-          {/* Control is our Feature Section */}
+          {/* Card 2: Control and Choice */}
           <Paper
-            elevation={2}
+            elevation={3}
             sx={{
               p: { xs: 3, md: 6 },
               textAlign: "center",
               flex: 1,
               minWidth: { md: "350px" },
-              borderRadius: 2,
+              borderRadius: 3,
             }}
           >
             <Box
@@ -112,7 +124,7 @@ function ShowExpertise() {
                 color: "primary.contrastText",
                 borderRadius: "50%",
                 p: 2,
-                mb: 2,
+                mb: 3,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -122,27 +134,28 @@ function ShowExpertise() {
             </Box>
             <Typography
               variant="h5"
+              component="h3"
               sx={{
                 fontWeight: 700,
                 mb: 1,
-                color: "text.secondary",
+                color: "text.primary",
                 fontSize: { xs: "1.2rem", md: "1.5rem" },
               }}
             >
-              Control Is Our Feature, Not an Afterthought
+              Control Is Our Feature
             </Typography>
             <Typography
               variant="body1"
               sx={{
                 color: "text.secondary",
                 lineHeight: 1.6,
-                fontSize: { xs: "0.9rem", md: "1rem" },
+                fontSize: { xs: "0.95rem", md: "1rem" },
               }}
             >
-              In a world of cloud services, we believe your professional data
-              deserves the highest level of security. Whether you choose our
-              open-source, self-hosted platform or our convenient managed
-              service, you get powerful AI without compromising on privacy.
+              We give you the choice. Deploy the entire platform yourself for
+              absolute control over your data, or use our convenient hosted
+              service. Either way, you get a powerful, AI-driven platform
+              without compromising your professional privacy or security.
             </Typography>
           </Paper>
         </Box>

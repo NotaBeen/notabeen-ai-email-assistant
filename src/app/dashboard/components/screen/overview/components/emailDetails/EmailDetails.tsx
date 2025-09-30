@@ -8,7 +8,8 @@ import {
 } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import CloseIcon from "@mui/icons-material/Close";
-import { useUser } from "@auth0/nextjs-auth0";
+// 🚨 FIX 1: Replace Auth0's useUser with NextAuth's useSession
+import { useSession } from "next-auth/react";
 
 import EmailContentDisplay from "./components/EmailContentDisplay";
 import { Email } from "@/types/interfaces";
@@ -49,15 +50,25 @@ function EmailDetails({
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { user } = useUser();
-  const accessToken = user?.auth0_access_token;
+
+  // 🚨 FIX 2: Use NextAuth's useSession hook
+  const { data: session } = useSession();
+
+  // 🚨 FIX 3: Get the Google Access Token from the custom session property
+  const accessToken = session?.googleAccessToken;
 
   const getFullEmail = useCallback(
     async (emailId: string) => {
+      // Check if the token is available
       if (!emailId) {
         setError("No email ID provided");
         return;
       }
+      if (!accessToken) {
+        setError("Authentication token missing. Please sign in again.");
+        return;
+      }
+
       setFullEmailLoading(true);
       setError(null);
       try {
@@ -67,6 +78,7 @@ function EmailDetails({
             method: "GET",
             headers: {
               "Content-Type": "application/json",
+              // 🚨 FIX 4: Use the NextAuth-derived accessToken
               Authorization: `Bearer ${accessToken}`,
             },
           },
@@ -91,15 +103,17 @@ function EmailDetails({
         setFullEmailLoading(false);
       }
     },
+    // 🚨 FIX 5: Dependency array now correctly includes accessToken
     [accessToken, setFullEmail],
   );
 
   useEffect(() => {
-    if (currentEmail) {
+    // Only attempt to fetch if the current email is set AND we have a token
+    if (currentEmail && accessToken) {
       setFullEmail({ body: "", attachments: [] });
       getFullEmail(currentEmail.emailId);
     }
-  }, [currentEmail, getFullEmail, setFullEmail]);
+  }, [currentEmail, accessToken, getFullEmail, setFullEmail]); // Added accessToken to dependencies
 
   const handleCloseViewer = () => {
     setCurrentEmail(null);

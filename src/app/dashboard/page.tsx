@@ -1,7 +1,8 @@
+// src/app/dashboard/page.tsx
 "use client";
 import { Box } from "@mui/material";
-import { useUser } from "@auth0/nextjs-auth0";
-import { useEffect, useState, useCallback } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useEffect, useState, useCallback } from "react"; // Removed unused 'useRef'
 import Profile from "@/app/dashboard/components/screen/profile/Profile";
 import NavBarTop from "@/app/dashboard/components/navigation/NavBarTop";
 import TermsConditionsPopup from "@/components/popup/TermsConditionsPopup";
@@ -12,107 +13,30 @@ import { Email } from "@/types/interfaces";
 type CurrentEmail = Email;
 
 function Dashboard() {
-  const { user } = useUser();
+  const { data: session, status } = useSession();
+  const user = session?.user;
+
+  // Assuming the NextAuth session callback injects 'googleAccessToken' as a string.
+  const accessToken = (session as { googleAccessToken?: string })
+    ?.googleAccessToken;
+
   const [screen, setScreen] = useState("overview");
   const [currentEmail, setCurrentEmail] = useState<CurrentEmail | null>(null);
 
   const [emails, setEmails] = useState<Email[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  console.log(isDataLoading);
+  // Removed unused state: overviewOpen
   const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
-  // State to track the active filter
   const [activeFilter, setActiveFilter] = useState("urgent");
-  console.log(overviewOpen);
-  console.log(isLoading);
+  const [initialRefreshDone, setInitialRefreshDone] = useState(false);
 
-  const accessToken = user?.auth0_access_token;
-
-  // Function to fetch emails from the backend
-  const getEmails = useCallback(async () => {
-    if (termsAccepted === false) return;
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/user/emails", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setEmails(data.emails);
-        console.log("Successfully fetched emails.");
-      } else {
-        try {
-          await response.json();
-        } catch (jsonError) {
-          console.error("Failed to parse JSON error response:", jsonError);
-        }
-      }
-    } catch (error) {
-      console.error("Network error, failed to fetch emails:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, termsAccepted]);
-
-  // Function to refresh the inbox by calling the Gmail API
-  const refreshInbox = useCallback(async () => {
-    if (termsAccepted === false) return;
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/gmail", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      if (response.ok) {
-        await getEmails();
-        // Capture the gmail_connected event ONLY if the response is successful
-        posthog.capture("gmail_connected");
-      } else {
-        console.error("Failed to process emails. Status:", response.status);
-        if (response.status === 401) {
-          window.location.href = "/auth/logout";
-        }
-        // Optional: Capture a 'gmail_connection_failed' event with error details
-        posthog.capture("gmail_connection_failed", {
-          status: response.status,
-          error_message: await response.text(), // Get the error message from the response body
-        });
-      }
-    } catch (error) {
-      console.error("Failed to process emails:", error);
-      // Capture a 'gmail_connection_failed' event for network/other errors
-      posthog.capture("gmail_connection_failed", {
-        error_message:
-          typeof error === "object" && error !== null && "message" in error
-            ? (error as { message?: string }).message
-            : String(error),
-        error_type:
-          typeof error === "object" && error !== null && "name" in error
-            ? (error as { name?: string }).name
-            : typeof error,
-      });
-    } finally {
-      setIsLoading(false); // getEmails already sets this
-    }
-  }, [accessToken, getEmails, termsAccepted]);
-
-  // Primary user data fetching and initial setup
+  // Function to fetch user data and terms acceptance
   const fetchUserDataAndVerifyEmail = useCallback(async () => {
-    if (!user) return; // Only proceed if Auth0 user session exists
-
+    if (!user) return;
+    setIsDataLoading(true);
     try {
-      const response = await fetch("/api/user", {
-        method: "GET",
-      });
-
+      const response = await fetch("/api/user", { method: "GET" });
       if (response.ok) {
         const data = await response.json();
         setTermsAccepted(data.terms_acceptance || false);
@@ -122,59 +46,142 @@ function Dashboard() {
           response.status,
           response.statusText,
         );
-        // If user data can't be fetched, assume unverified or issues
-        setTermsAccepted(false); // Or handle as appropriate for your app's flow
+        setTermsAccepted(false);
       }
     } catch (error: unknown) {
       console.error("Failed to fetch user data:", error);
       setTermsAccepted(false);
     } finally {
-      setIsLoading(false); // End loading after initial user data check
+      setIsDataLoading(false);
     }
   }, [user]);
 
+  // Function to fetch emails from the backend (processed emails for display)
+  const getEmails = useCallback(async () => {
+    if (termsAccepted === false || !accessToken) return;
+    setIsDataLoading(true);
+
+    try {
+      const response = await fetch("/api/user/emails", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEmails(data.emails);
+        console.log("Successfully fetched emails for display.");
+      } else {
+        // Attempt to log JSON error from server
+        try {
+          const errorData = await response.json();
+          console.error("Failed to fetch emails:", errorData);
+        } catch {
+          console.error("Failed to fetch emails. Status:", response.status);
+        }
+      }
+    } catch (error) {
+      console.error("Network error, failed to fetch emails:", error);
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, [accessToken, termsAccepted]);
+
+  // Function to refresh the inbox by calling the Gmail API
+  const refreshInbox = useCallback(
+    async (isInitialLoad = false) => {
+      if (termsAccepted === false || !accessToken) return;
+      setIsDataLoading(true);
+      try {
+        const response = await fetch("/api/gmail", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (response.ok) {
+          await getEmails(); // Fetch the new list of emails for display
+          posthog.capture("gmail_connected");
+          if (isInitialLoad) setInitialRefreshDone(true);
+        } else {
+          console.error("Failed to process emails. Status:", response.status);
+          if (response.status === 401) {
+            // User's Google token is likely expired/revoked
+            await signOut({ callbackUrl: "/" });
+          }
+        }
+      } catch (error) {
+        console.error("Failed to process emails:", error);
+      } finally {
+        setIsDataLoading(false);
+      }
+    },
+    [accessToken, getEmails, termsAccepted],
+  );
+
+  // 1. useEffect for fetching user data and continuous terms status check
   useEffect(() => {
-    // This effect runs only once when the `user` object becomes available
-    // and then periodically refreshes the user data.
-    fetchUserDataAndVerifyEmail(); // Initial call
+    fetchUserDataAndVerifyEmail();
 
     let intervalId: NodeJS.Timeout | undefined;
-    if (user) {
+    if (session) {
       intervalId = setInterval(() => {
-        setIsLoading(true); // Set loading state before fetching
-        fetchUserDataAndVerifyEmail(); // Refresh user data and verification status
-      }, 30000); // Check user data every 30 seconds
+        setIsDataLoading(true);
+        fetchUserDataAndVerifyEmail();
+      }, 30000);
     }
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
       }
     };
-  }, [user, fetchUserDataAndVerifyEmail]); // Depend on user and the memoized function
+  }, [session, fetchUserDataAndVerifyEmail]);
 
-  // Separate useEffect for email fetching and auto-refresh,
-  // dependent on termsAccepted and emailVerified being true.
+  // 2. useEffect for email processing and display refresh based on terms acceptance
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | undefined;
     if (termsAccepted === true) {
       console.log(
-        "Email is verified and terms accepted. Fetching emails and setting up refresh.",
+        "Terms accepted. Checking for initial refresh and setting up interval.",
       );
-      getEmails(); // Fetch initial emails
-      const intervalId = setInterval(() => {
+      if (!initialRefreshDone) {
+        refreshInbox(true); // Call the API immediately upon loading
+      } else {
+        getEmails(); // If initial refresh is done, just fetch the current list for display
+      }
+      // Set up the interval for continuous refresh
+      intervalId = setInterval(() => {
         refreshInbox();
       }, 30000);
+
       return () => clearInterval(intervalId);
     } else if (termsAccepted === false) {
       console.log(
-        "Email not verified or terms not accepted. Not fetching emails or setting up refresh.",
+        "Terms not accepted. Not fetching emails or setting up refresh.",
       );
     }
-  }, [termsAccepted, getEmails, refreshInbox]);
+    // Cleanup if termsAccepted changes to null (e.g., on signout)
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [termsAccepted, getEmails, refreshInbox, initialRefreshDone]);
 
-  // Handler for accepting terms and conditions
   const handleTermsAccepted = () => {
     setTermsAccepted(true);
   };
+
+  // --- Early Returns MUST be after all Hook calls ---
+  if (status === "loading") {
+    return <Box sx={{ p: 4 }}>Loading Session...</Box>;
+  }
+  if (status === "unauthenticated") {
+    return null;
+  }
+  // --- End Early Returns ---
 
   return (
     <Box
@@ -185,28 +192,19 @@ function Dashboard() {
         overflow: "hidden",
       }}
     >
-      {/* Top Navigation Bar */}
       <Box sx={{ height: "7%", width: "100%", backgroundColor: "#F2EEEC" }}>
         <NavBarTop
           setEmails={setEmails}
           setScreen={setScreen}
-          setOverviewOpen={setOverviewOpen}
+          setOverviewOpen={() => {}}
         />
       </Box>
 
-      {/* Conditional Terms and Conditions Popup */}
       {termsAccepted === false && (
         <TermsConditionsPopup onAcceptTerms={handleTermsAccepted} />
       )}
 
-      {/* Main Content Area */}
-      <Box
-        sx={{
-          height: "93%",
-          width: "100%",
-        }}
-      >
-        {/* Overview Screen */}
+      <Box sx={{ height: "93%", width: "100%" }}>
         {screen === "overview" && (
           <Box sx={{ height: "100%", width: "100%" }}>
             <Overview
@@ -222,7 +220,6 @@ function Dashboard() {
           </Box>
         )}
 
-        {/* Profile Screen */}
         {screen === "profile" && (
           <Box sx={{ height: "100%", width: "100%" }}>
             <Profile />
