@@ -75,7 +75,7 @@ Create a `.env.local` file in the root directory and add the following variables
 
 ```env
 # NextAuth & Security
-NEXTAUTH_SECRET="use [openssl rand -hex 32] to generate a 32 bytes value"
+AUTH_SECRET="node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 NEXTAUTH_URL="http://localhost:3000"
 
 # Google OAuth (Authentication & Gmail Access)
@@ -95,13 +95,13 @@ GEMINI_API_KEY=
 
 #### Environment Variable Instructions
 
-- **NEXTAUTH_SECRET:** Run `openssl rand -hex 32` to generate a secure value.
+- **AUTH_SECRET:** In terminal ```run node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"```
 - **NEXTAUTH_URL:** Base URL for your app (e.g., `http://localhost:3000` for local development).
 - **GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET:** From your Google Cloud OAuth 2.0 credentials.
 - **MONGODB_URI:** Connection string for your MongoDB database.
 - **MONGO_CLIENT:** Database name (e.g., `test` or `notabeen-db`).
-- **ENCRYPTION_IV:** Run `openssl rand -hex 12` to generate.
-- **ENCRYPTION_KEY:** Run `openssl rand -hex 32` to generate.
+- **ENCRYPTION_IV:** Run `openssl rand -base64 9` to generate.
+- **ENCRYPTION_KEY:** Run `openssl rand -base64 24` to generate.
 - **GEMINI_API_KEY:** Your Google Gemini API key.
 
 ### 4. Run the dev server
