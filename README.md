@@ -80,6 +80,7 @@ NEXTAUTH_URL="http://localhost:3000"
 
 # Google OAuth (Authentication & Gmail Access)
 # NOTE: This MUST be set up with the Gmail API scope enabled in Google Cloud.
+# NOTE: The Callback url is http://localhost:3000/api/auth/callback/google for google Auth
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
