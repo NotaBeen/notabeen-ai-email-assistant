@@ -10,12 +10,12 @@ import { saveEmailAndIncrementCount } from "../database/user-db";
 import { auth } from "@/auth";
 import { GoogleGenAI } from "@google/genai";
 
-const MAX_BATCH_SIZE = 10; // Increased for batch API efficiency
-const BASE_BATCH_DELAY_MS = 5000; // Base delay between batches (5 seconds)
-const BASE_EMAIL_DELAY_MS = 2000; // Base delay between individual emails in batch
+const MAX_BATCH_SIZE = 5; // Optimized for concurrent processing without overwhelming rate limits
+const BASE_BATCH_DELAY_MS = 1000; // Reduced delay between batches (1 second)
+const BASE_EMAIL_DELAY_MS = 500; // Reduced delay between individual emails in batch
 const BACKOFF_MULTIPLIER = 2; // Multiplier for backoff when rate limits are hit
 const MAX_DELAY_MS = 60000; // Maximum delay (1 minute)
-const USE_BATCH_API = true; // Enable batch API for better efficiency
+const USE_BATCH_API = false; // Disable batch API - requires GCS setup, not suitable for real-time queue processing
 
 interface BatchProcessingResult {
   successful: (GmailMessage & { precis: PrecisResult })[];
