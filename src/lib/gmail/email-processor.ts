@@ -355,11 +355,13 @@ async function generateAndSavePrecis(
 
   const response = await retryWithBackoff(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     try {
-      const result = await model.generateContent(contentToSend);
-      return result.response;
+      const result = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: contentToSend,
+      });
+      return result;
     } catch (error: any) {
       logger.error(
         `Gemini SDK failed for email ${message.id}. Error:`, error,
@@ -396,7 +398,7 @@ async function generateAndSavePrecis(
     }
   });
 
-  const content = response.text(); // --- Parsing Logic (Simplified) ---
+  const content = response.text; // --- Parsing Logic (Simplified) ---
 
   const summaryMatch = content.match(
     /\s*Summary:\s*([\s\S]*?)(?=\n\s*Urgency Score:|$)/,
