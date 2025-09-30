@@ -8,9 +8,14 @@ import { PrecisResult } from "./email-processor";
 import { ObjectId } from "mongodb";
 import { saveEmailAndIncrementCount } from "../database/user-db";
 import { auth } from "@/auth";
+import { GoogleGenAI } from "@google/genai";
 
-const MAX_BATCH_SIZE = 5; // Conservative batch size for free tier
-const BATCH_DELAY_MS = 1000; // Delay between batches
+const MAX_BATCH_SIZE = 10; // Increased for batch API efficiency
+const BASE_BATCH_DELAY_MS = 5000; // Base delay between batches (5 seconds)
+const BASE_EMAIL_DELAY_MS = 2000; // Base delay between individual emails in batch
+const BACKOFF_MULTIPLIER = 2; // Multiplier for backoff when rate limits are hit
+const MAX_DELAY_MS = 60000; // Maximum delay (1 minute)
+const USE_BATCH_API = true; // Enable batch API for better efficiency
 
 interface BatchProcessingResult {
   successful: (GmailMessage & { precis: PrecisResult })[];
@@ -25,6 +30,10 @@ interface BatchProcessingResult {
     quotaMetric?: string;
     quotaLimit?: string;
   };
+  adaptiveDelay?: {
+    batchDelayMs: number;
+    emailDelayMs: number;
+  };
 }
 
 /**
@@ -33,38 +42,70 @@ interface BatchProcessingResult {
 export async function processEmailsInBatches(
   messages: GmailMessage[],
 ): Promise<BatchProcessingResult> {
+  let batchDelayMs = BASE_BATCH_DELAY_MS;
+  let emailDelayMs = BASE_EMAIL_DELAY_MS;
+  let consecutiveRateLimits = 0;
+
   const result: BatchProcessingResult = {
     successful: [],
-    failed: []
+    failed: [],
+    adaptiveDelay: {
+      batchDelayMs,
+      emailDelayMs
+    }
   };
 
-  logger.info(`Processing ${messages.length} emails in batches of ${MAX_BATCH_SIZE}`);
+  logger.info(`Processing ${messages.length} emails in batches of ${MAX_BATCH_SIZE} with adaptive delays`);
 
   for (let i = 0; i < messages.length; i += MAX_BATCH_SIZE) {
     const batch = messages.slice(i, i + MAX_BATCH_SIZE);
-    logger.info(`Processing batch ${Math.floor(i / MAX_BATCH_SIZE) + 1}/${Math.ceil(messages.length / MAX_BATCH_SIZE)}`);
+    const batchNumber = Math.floor(i / MAX_BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(messages.length / MAX_BATCH_SIZE);
+
+    logger.info(`Processing batch ${batchNumber}/${totalBatches} with delays: batch=${batchDelayMs}ms, email=${emailDelayMs}ms`);
 
     try {
-      const batchResult = await processBatch(batch);
+      const batchResult = await processBatch(batch, emailDelayMs);
 
       result.successful.push(...batchResult.successful);
       result.failed.push(...batchResult.failed);
 
-      // If we hit rate limits, update the result and stop processing
+      // Reset backoff on successful batch
+      if (!batchResult.rateLimitInfo?.quotaExceeded) {
+        consecutiveRateLimits = 0;
+        batchDelayMs = Math.max(BASE_BATCH_DELAY_MS, Math.floor(batchDelayMs / BACKOFF_MULTIPLIER));
+        emailDelayMs = Math.max(BASE_EMAIL_DELAY_MS, Math.floor(emailDelayMs / BACKOFF_MULTIPLIER));
+      }
+
+      // If we hit rate limits, update the result and apply backoff
       if (batchResult.rateLimitInfo?.quotaExceeded) {
         result.rateLimitInfo = batchResult.rateLimitInfo;
-        logger.warn(`Rate limit hit in batch ${Math.floor(i / MAX_BATCH_SIZE) + 1}. Stopping further processing.`);
+        consecutiveRateLimits++;
+
+        // Apply exponential backoff
+        batchDelayMs = Math.min(MAX_DELAY_MS, batchDelayMs * BACKOFF_MULTIPLIER);
+        emailDelayMs = Math.min(MAX_DELAY_MS, emailDelayMs * BACKOFF_MULTIPLIER);
+
+        logger.warn(`Rate limit hit in batch ${batchNumber}. Applying backoff: batch=${batchDelayMs}ms, email=${emailDelayMs}ms. Stopping further processing.`);
         break;
       }
 
+      // Update adaptive delay info
+      result.adaptiveDelay = { batchDelayMs, emailDelayMs };
+
       // Add delay between batches to avoid rate limits
       if (i + MAX_BATCH_SIZE < messages.length) {
-        logger.info(`Waiting ${BATCH_DELAY_MS}ms before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+        logger.info(`Waiting ${batchDelayMs}ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, batchDelayMs));
       }
 
     } catch (error) {
-      logger.error(`Batch ${Math.floor(i / MAX_BATCH_SIZE) + 1} failed:`, error);
+      logger.error(`Batch ${batchNumber} failed:`, error);
+
+      // Apply backoff on general errors too
+      consecutiveRateLimits++;
+      batchDelayMs = Math.min(MAX_DELAY_MS, batchDelayMs * BACKOFF_MULTIPLIER);
+      emailDelayMs = Math.min(MAX_DELAY_MS, emailDelayMs * BACKOFF_MULTIPLIER);
 
       // Add all messages in this batch as failed
       batch.forEach(message => {
@@ -74,17 +115,26 @@ export async function processEmailsInBatches(
           isRateLimit: false
         });
       });
+
+      // Update adaptive delay info
+      result.adaptiveDelay = { batchDelayMs, emailDelayMs };
+
+      // Add delay between batches even after errors
+      if (i + MAX_BATCH_SIZE < messages.length) {
+        logger.info(`Waiting ${batchDelayMs}ms before next batch due to error...`);
+        await new Promise(resolve => setTimeout(resolve, batchDelayMs));
+      }
     }
   }
 
-  logger.info(`Batch processing complete. Successful: ${result.successful.length}, Failed: ${result.failed.length}`);
+  logger.info(`Batch processing complete. Successful: ${result.successful.length}, Failed: ${result.failed.length}, Final delays: batch=${batchDelayMs}ms, email=${emailDelayMs}ms`);
   return result;
 }
 
 /**
- * Process a single batch of emails
+ * Process a single batch of emails using Gemini Batch API
  */
-async function processBatch(
+async function processBatchWithAPI(
   messages: GmailMessage[],
 ): Promise<BatchProcessingResult> {
   const result: BatchProcessingResult = {
@@ -92,8 +142,181 @@ async function processBatch(
     failed: []
   };
 
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    logger.error("Attempted batch processing without valid session.");
+    messages.forEach(message => {
+      result.failed.push({
+        message,
+        error: new Error("No valid session"),
+        isRateLimit: false
+      });
+    });
+    return result;
+  }
+  const emailOwner = session.user.id;
+
+  // Prepare batch requests
+  const batchRequests = messages.map(message => {
+    const formattedDate = message.dateReceived instanceof Date && !isNaN(message.dateReceived.getTime())
+      ? message.dateReceived.toISOString().split("T")[0]
+      : "unknown date";
+
+    const contentToSend = generateGeminiEmailPrecisPrompt({
+      sender: message.sender,
+      recipients: message.recipients.join(", ") || "none",
+      unsubscribeLinkPresent: message.unsubscribeLink ? "Yes" : "No",
+      attachmentNames: message.attachmentNames?.join(", ") || "none",
+      formattedDate,
+      text: message.body,
+    });
+
+    return {
+      contents: [{ parts: [{ text: contentToSend }] }],
+      // Store email metadata for later processing
+      _emailMetadata: {
+        id: message.id,
+        sender: message.sender,
+        dateReceived: message.dateReceived,
+        subject: message.subject,
+        emailUrl: message.emailUrl,
+        recipients: message.recipients,
+        unsubscribeLink: message.unsubscribeLink,
+        attachmentNames: message.attachmentNames
+      }
+    };
+  });
+
+  try {
+    logger.info(`Creating batch job for ${batchRequests.length} emails`);
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+
+    // Create batch job
+    const batchJob = await ai.batches.create({
+      model: 'gemini-2.0-flash',
+      src: batchRequests.map(req => ({
+        contents: req.contents
+      })),
+      config: {
+        displayName: `email-processing-${Date.now()}`,
+        // Add any additional configuration
+      }
+    });
+
+    logger.info(`Created batch job: ${batchJob.name}`);
+
+    // Poll for completion (in a real implementation, you might want to do this asynchronously)
+    const maxWaitTime = 10 * 60 * 1000; // 10 minutes max wait
+    const pollInterval = 30000; // 30 seconds polling
+    let elapsed = 0;
+
+    while (elapsed < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      elapsed += pollInterval;
+
+      const jobStatus = await ai.batches.get({ name: batchJob.name });
+
+      logger.info(`Batch job status: ${jobStatus.state}, progress: ${jobStatus.completedCount || 0}/${batchRequests.length}`);
+
+      if (jobStatus.state === 'SUCCEEDED') {
+        // Get results
+        const results = await ai.batches.results({ name: batchJob.name });
+
+        // Process results
+        for (let i = 0; i < results.responses.length; i++) {
+          const response = results.responses[i];
+          const originalMessage = messages[i];
+
+          try {
+            const content = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            const precis = parseGeminiResponse(content, originalMessage.id);
+
+            if (precis) {
+              // Save to database
+              await saveProcessedEmail(originalMessage, precis, emailOwner);
+              result.successful.push({ ...originalMessage, precis });
+            } else {
+              result.failed.push({
+                message: originalMessage,
+                error: new Error("Failed to parse Gemini response"),
+                isRateLimit: false
+              });
+            }
+          } catch (error) {
+            result.failed.push({
+              message: originalMessage,
+              error: error as Error,
+              isRateLimit: false
+            });
+          }
+        }
+
+        logger.info(`Batch processing complete: ${result.successful.length} successful, ${result.failed.length} failed`);
+        return result;
+
+      } else if (jobStatus.state === 'FAILED') {
+        throw new Error(`Batch job failed: ${jobStatus.error?.message || 'Unknown error'}`);
+      } else if (jobStatus.state === 'CANCELLED') {
+        throw new Error("Batch job was cancelled");
+      }
+    }
+
+    // Timeout reached - mark all as failed
+    throw new Error("Batch processing timed out after 10 minutes");
+
+  } catch (error: any) {
+    logger.error("Batch API processing failed:", error);
+
+    // Fallback to individual processing
+    logger.info("Falling back to individual email processing");
+    return await processBatchIndividually(messages, 2000); // Use 2s delays
+  }
+}
+
+/**
+ * Parse Gemini response content into PrecisResult
+ */
+function parseGeminiResponse(content: string, emailId: string): PrecisResult | null {
+  try {
+    const summaryMatch = content.match(/\s*Summary:\s*([\s\S]*?)(?=\n\s*Urgency Score:|$)/);
+    const urgencyScoreMatch = content.match(/\s*Urgency Score:\s*(\d+)/);
+    const actionMatch = content.match(/\s*Action:\s*([\s\S]*?)(?=\n\s*Classification:|$)/);
+    const classificationMatch = content.match(/\s*Classification:\s*(\w+)/);
+    const keywordsMatch = content.match(/\s*Keywords:\s*([\s\S]*?)(?=\n\s*ExtractedEntities:|$)/);
+    const extractedEntitiesMatch = content.match(/\s*ExtractedEntities:\s*(\{[\s\S]*?\})/);
+
+    const precisResult: PrecisResult = {
+      summary: summaryMatch ? summaryMatch[1].trim() : "",
+      urgencyScore: urgencyScoreMatch ? parseInt(urgencyScoreMatch[1].trim(), 10) : 0,
+      action: actionMatch ? actionMatch[1].trim() : "",
+      classification: classificationMatch ? classificationMatch[1].trim() : "Uncategorized",
+      keywords: keywordsMatch ? keywordsMatch[1].trim().split(",").map((k: string) => k.trim()) : [],
+      extractedEntities: parseExtractedEntities(emailId, extractedEntitiesMatch ? extractedEntitiesMatch[1] : null)
+    };
+
+    return precisResult;
+  } catch (error) {
+    logger.error(`Failed to parse Gemini response for email ${emailId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Process emails individually (fallback method)
+ */
+async function processBatchIndividually(
+  messages: GmailMessage[],
+  emailDelayMs: number,
+): Promise<BatchProcessingResult> {
+  const result: BatchProcessingResult = {
+    successful: [],
+    failed: []
+  };
+
   // Process emails sequentially within the batch to avoid concurrent rate limit hits
-  for (const message of messages) {
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
     try {
       const precis = await generateAndSavePrecis(message);
       if (precis) {
@@ -119,10 +342,33 @@ async function processBatch(
         };
         break;
       }
+
+      // Add delay between individual emails (except after the last one or rate limit)
+      if (i < messages.length - 1 && !isRateLimit) {
+        logger.info(`Waiting ${emailDelayMs}ms before next email...`);
+        await new Promise(resolve => setTimeout(resolve, emailDelayMs));
+      }
     }
   }
 
   return result;
+}
+
+/**
+ * Process a single batch of emails
+ */
+async function processBatch(
+  messages: GmailMessage[],
+  emailDelayMs: number,
+): Promise<BatchProcessingResult> {
+  // Use batch API if enabled and we have enough messages
+  if (USE_BATCH_API && messages.length >= 3) {
+    logger.info(`Using Gemini Batch API for ${messages.length} emails`);
+    return await processBatchWithAPI(messages);
+  } else {
+    logger.info(`Using individual processing for ${messages.length} emails`);
+    return await processBatchIndividually(messages, emailDelayMs);
+  }
 }
 
 /**
@@ -164,71 +410,49 @@ async function generateAndSavePrecis(
     text: message.body,
   });
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: contentToSend }],
-          },
-        ],
-      }),
-    },
-  );
+  // Use Gemini SDK instead of direct fetch
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-  if (!response.ok) {
-    const errorDetails = await response.text();
+  let content: string;
+  try {
+    const result = await model.generateContent(contentToSend);
+    const response = result.response;
+    content = response.text();
+  } catch (error: any) {
     logger.error(
-      `Gemini API failed for email ${message.id}. Status: ${response.status}, Details: ${errorDetails}`,
+      `Gemini SDK failed for email ${message.id}. Error:`, error,
     );
 
-    // Parse rate limit errors
-    if (response.status === 429) {
-      try {
-        const errorData = JSON.parse(errorDetails);
-        const error = new Error(errorData.error?.message || 'Rate limit exceeded') as Error & {
-          status?: number;
-          retryAfter?: number;
-          quotaInfo?: { quotaMetric?: string; quotaValue?: string };
+    // Convert SDK errors to our expected format
+    const errorObj = error as Error & {
+      status?: number;
+      retryAfter?: number;
+      quotaInfo?: { quotaMetric?: string; quotaValue?: string };
+    };
+
+    // Check for rate limit errors in SDK responses
+    if (error.message?.includes('rate limit') || error.message?.includes('quota')) {
+      errorObj.status = 429;
+
+      // Try to extract retry information from error message
+      const retryMatch = error.message.match(/(\d+(?:\.\d+)?)\s*(?:seconds?|s)/i);
+      if (retryMatch) {
+        errorObj.retryAfter = parseFloat(retryMatch[1]) * 1000;
+      }
+
+      // Try to extract quota information
+      const quotaMatch = error.message.match(/quota.*?(\w+)/i);
+      if (quotaMatch) {
+        errorObj.quotaInfo = {
+          quotaMetric: 'unknown',
+          quotaValue: quotaMatch[1]
         };
-        error.status = response.status;
-
-        // Extract retry delay
-        const retryInfo = errorData.error?.details?.find((detail: { '@type': string; retryDelay?: string }) =>
-          detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
-        );
-        if (retryInfo?.retryDelay) {
-          const delayMatch = retryInfo.retryDelay.match(/(\d+\.?\d*)s/);
-          if (delayMatch) {
-            error.retryAfter = parseFloat(delayMatch[1]) * 1000;
-          }
-        }
-
-        // Extract quota information
-        const quotaFailure = errorData.error?.details?.find((detail: { '@type': string; violations?: { quotaMetric?: string; quotaValue?: string }[] }) =>
-          detail['@type'] === 'type.googleapis.com/google.rpc.QuotaFailure'
-        );
-        if (quotaFailure?.violations?.[0]) {
-          error.quotaInfo = {
-            quotaMetric: quotaFailure.violations[0].quotaMetric,
-            quotaValue: quotaFailure.violations[0].quotaValue
-          };
-        }
-
-        throw error;
-      } catch {
-        // If parsing fails, throw a generic error
       }
     }
 
-    throw new Error(`Gemini API request failed with status ${response.status}`);
+    throw errorObj;
   }
-
-  const data = await response.json();
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
   // Parse the response
   const summaryMatch = content.match(
