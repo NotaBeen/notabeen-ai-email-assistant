@@ -151,6 +151,8 @@ export const getMongoClient = () => clientPromise;
 
 // --- NextAuth Configuration ---
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true, 
+  
   adapter: PatchedMongoDBAdapter(clientPromise, {
     databaseName: MONGODB_CLIENT_NAME,
     useEncryption: false,
