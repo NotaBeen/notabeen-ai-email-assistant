@@ -37,7 +37,7 @@ interface GeminiRateLimitError extends Error {
   };
 }
 
-interface PrecisResult {
+export interface PrecisResult {
   summary: string;
   urgencyScore: number;
   action: string;
