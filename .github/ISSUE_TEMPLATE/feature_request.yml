@@ -1,0 +1,46 @@
+name: "Feature request"
+description: "Suggest an idea to improve the product."
+title: "[Feature]: <concise summary>"
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea? Tell us what you need and why it matters.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: "What problem are you trying to solve or what pain point did you encounter?"
+      placeholder: "When I try to triage emails, I can't..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: "Describe the feature or change you'd like to see."
+      placeholder: "Add a filter to..."
+    validations:
+      required: true
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Why is this valuable?
+      description: "How will this improve the user experience or business outcomes?"
+      placeholder: "It would save X hours per week because..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative solutions or workarounds
+      description: "What have you tried already?"
+      placeholder: "Today we..."
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: "Links, screenshots, mocks, or other context."
