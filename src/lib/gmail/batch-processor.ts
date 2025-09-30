@@ -265,7 +265,7 @@ async function processBatchWithAPI(
     // Timeout reached - mark all as failed
     throw new Error("Batch processing timed out after 10 minutes");
 
-  } catch (error: any) {
+  } catch (error: Error) {
     logger.error("Batch API processing failed:", error);
 
     // Fallback to individual processing
@@ -412,14 +412,15 @@ async function generateAndSavePrecis(
 
   // Use Gemini SDK instead of direct fetch
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-  const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   let content: string;
   try {
-    const result = await model.generateContent(contentToSend);
-    const response = result.response;
-    content = response.text();
-  } catch (error: any) {
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: contentToSend,
+    });
+    content = result.text;
+  } catch (error: Error) {
     logger.error(
       `Gemini SDK failed for email ${message.id}. Error:`, error,
     );
