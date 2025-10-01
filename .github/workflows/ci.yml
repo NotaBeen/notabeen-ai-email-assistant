@@ -2,9 +2,9 @@
 
 name: CI
 
-# Triggers the workflow on pull request events
+# This trigger runs in the context of the base repository, which has access to secrets.
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
       - master
@@ -20,6 +20,8 @@ jobs:
       # Step 1: Checks out your repository code
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} 
 
       # Step 2: Sets up the Node.js environment
       - name: Set up Node.js
