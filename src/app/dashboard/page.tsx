@@ -8,6 +8,8 @@ import NavBarTop from "@/app/dashboard/components/navigation/NavBarTop";
 import TermsConditionsPopup from "@/components/popup/TermsConditionsPopup";
 import posthog from "posthog-js";
 import Overview from "./components/screen/overview/Overview";
+import QuotaWarning from "@/components/QuotaWarning";
+import LoadingOverlay from "@/components/LoadingOverlay";
 import { Email } from "@/types/interfaces";
 
 type CurrentEmail = Email;
@@ -30,6 +32,29 @@ function Dashboard() {
   const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
   const [activeFilter, setActiveFilter] = useState("urgent");
   const [initialRefreshDone, setInitialRefreshDone] = useState(false);
+  const [quotaError, setQuotaError] = useState<{
+    message: string;
+    retryAfter?: number;
+    quotaLimit?: string;
+    helpUrl?: string;
+  } | null>(null);
+
+  const [loadingState, setLoadingState] = useState<{
+    isOpen: boolean;
+    message?: string;
+    operationType?: 'refresh' | 'processing' | 'queue' | 'initial';
+    progress?: number;
+    showProgress?: boolean;
+    queueStats?: {
+      total: number;
+      pending: number;
+      processing: number;
+      completed: number;
+    };
+  }>({
+    isOpen: false,
+    operationType: 'processing'
+  });
 
   // Function to fetch user data and terms acceptance
   const fetchUserDataAndVerifyEmail = useCallback(async () => {
@@ -94,6 +119,14 @@ function Dashboard() {
     async (isInitialLoad = false) => {
       if (termsAccepted === false || !accessToken) return;
       setIsDataLoading(true);
+
+      // Set loading overlay state
+      setLoadingState({
+        isOpen: true,
+        operationType: isInitialLoad ? 'initial' : 'refresh',
+        message: isInitialLoad ? 'Loading your workspace...' : 'Refreshing your emails...'
+      });
+
       try {
         const response = await fetch("/api/gmail", {
           method: "GET",
@@ -102,20 +135,50 @@ function Dashboard() {
           },
         });
         if (response.ok) {
+          const data = await response.json();
+
+          // Update loading state with queue information if available
+          if (data.queueStats) {
+            setLoadingState(prev => ({
+              ...prev,
+              message: `Processing ${data.queueStats.total} emails...`,
+              operationType: 'queue',
+              queueStats: data.queueStats,
+              showProgress: data.queueStats.total > 0
+            }));
+          }
+
           await getEmails(); // Fetch the new list of emails for display
           posthog.capture("gmail_connected");
           if (isInitialLoad) setInitialRefreshDone(true);
+          // Clear any previous quota errors on success
+          setQuotaError(null);
         } else {
-          console.error("Failed to process emails. Status:", response.status);
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to process emails. Status:", response.status, errorData);
+
           if (response.status === 401) {
             // User's Google token is likely expired/revoked
             await signOut({ callbackUrl: "/" });
+          } else if (response.status === 429 && errorData.rateLimitInfo) {
+            // Handle quota exceeded error
+            setQuotaError({
+              message: errorData.message || "Rate limits exceeded. Please try again later.",
+              retryAfter: errorData.rateLimitInfo.retryAfter,
+              quotaLimit: errorData.rateLimitInfo.quotaLimit,
+              helpUrl: errorData.rateLimitInfo.helpUrl
+            });
+          } else {
+            // Clear quota errors for other types of errors
+            setQuotaError(null);
           }
         }
       } catch (error) {
         console.error("Failed to process emails:", error);
       } finally {
         setIsDataLoading(false);
+        // Close loading overlay
+        setLoadingState(prev => ({ ...prev, isOpen: false }));
       }
     },
     [accessToken, getEmails, termsAccepted],
@@ -197,8 +260,18 @@ function Dashboard() {
           setEmails={setEmails}
           setScreen={setScreen}
           setOverviewOpen={() => {}}
+          quotaExceeded={!!quotaError}
         />
       </Box>
+
+      {quotaError && (
+        <Box sx={{ px: 2, pt: 1 }}>
+          <QuotaWarning
+            quotaError={quotaError}
+            onDismiss={() => setQuotaError(null)}
+          />
+        </Box>
+      )}
 
       {termsAccepted === false && (
         <TermsConditionsPopup onAcceptTerms={handleTermsAccepted} />
@@ -226,6 +299,16 @@ function Dashboard() {
           </Box>
         )}
       </Box>
+
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        isOpen={loadingState.isOpen}
+        message={loadingState.message}
+        operationType={loadingState.operationType}
+        progress={loadingState.progress}
+        showProgress={loadingState.showProgress}
+        queueStats={loadingState.queueStats}
+      />
     </Box>
   );
 }

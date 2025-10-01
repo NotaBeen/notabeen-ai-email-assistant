@@ -1,6 +1,6 @@
 // src/lib/gmail/gmail-client.ts
 
-import axios, { AxiosError } from "axios"; // Import AxiosError for proper type checking
+import { google } from "googleapis";
 import { logger } from "@/utils/logger";
 import { decodeBase64Url } from "@/utils/crypto";
 import { formatBodyText } from "@/utils/text";
@@ -22,6 +22,20 @@ interface GmailMessageHeader {
   value: string;
 }
 
+// Google API schema compatible types
+interface GmailApiSchemaHeader {
+  name?: string | null;
+  value?: string | null;
+}
+
+interface GmailApiSchemaPart {
+  filename?: string | null;
+  body?: { data?: string | null; attachmentId?: string | null } | null;
+  mimeType?: string | null;
+  parts?: GmailApiSchemaPart[] | null;
+  headers?: GmailApiSchemaHeader[] | null;
+}
+
 interface GmailMessagePart {
   filename?: string;
   body?: { data?: string; attachmentId?: string };
@@ -39,9 +53,17 @@ interface GmailApiMessage {
   };
 }
 
-// --- Type Guard for AxiosError ---
-function isAxiosError(error: unknown): error is AxiosError {
-  return axios.isAxiosError(error);
+// Gmail API message schema type (from googleapis)
+interface GmailApiSchemaMessage {
+  id?: string | null;
+  threadId?: string | null;
+  snippet?: string | null;
+  payload?: GmailApiSchemaPart;
+}
+
+// --- Type Guard for Google API Error ---
+function isGoogleApiError(error: unknown): error is { response?: { status?: number } } {
+  return typeof error === "object" && error !== null && "response" in error;
 }
 
 // --- Helper Functions (moved from route.ts) ---
@@ -61,7 +83,7 @@ async function fetchWithRetry<T>(
     let shouldRetry = false;
     let status: number | undefined;
 
-    if (isAxiosError(error)) {
+    if (isGoogleApiError(error)) {
       status = error.response?.status;
       // Check for rate limit (429)
       if (status === 429) {
@@ -113,7 +135,7 @@ async function fetchWithAdaptiveConcurrency<T, R>(
       try {
         results[currentIndex] = await fn(items[currentIndex]);
       } catch (error: unknown) {
-        if (isAxiosError(error) && error.response?.status === 429) {
+        if (isGoogleApiError(error) && error.response?.status === 429) {
           // Only reduce concurrency once, then rely on backoff/retry
           concurrency = Math.max(1, concurrency - 1);
           logger.warn(
@@ -146,10 +168,18 @@ async function fetchWithAdaptiveConcurrency<T, R>(
  * @param data The raw message data from the Gmail API.
  * @returns A formatted GmailMessage object.
  */
-function parseGmailMessage(data: GmailApiMessage): GmailMessage {
-  const getHeaderValue = (name: string) =>
-    (data.payload.headers as GmailMessageHeader[]).find((h) => h.name === name)
-      ?.value || "";
+function parseGmailMessage(data: GmailApiMessage | GmailApiSchemaMessage): GmailMessage {
+  const getHeaderValue = (name: string) => {
+    if (!data.payload?.headers) return "";
+
+    // Handle both our own types and Google API schema types
+    const headers = data.payload.headers.map(h => ({
+      name: h.name || "",
+      value: h.value || ""
+    }));
+
+    return headers.find((h) => h.name === name)?.value || "";
+  };
 
   const subject = getHeaderValue("Subject") || "No Subject";
   const sender = getHeaderValue("From") || "Unknown Sender";
@@ -176,7 +206,7 @@ function parseGmailMessage(data: GmailApiMessage): GmailMessage {
   }
 
   const attachmentNames: string[] = [];
-  function extractAttachmentNames(payload: GmailMessagePart) {
+  function extractAttachmentNames(payload: GmailMessagePart | GmailApiSchemaPart) {
     if (!payload) return;
     if (payload.filename && payload.body && payload.body.attachmentId) {
       attachmentNames.push(payload.filename);
@@ -185,13 +215,15 @@ function parseGmailMessage(data: GmailApiMessage): GmailMessage {
       payload.parts.forEach(extractAttachmentNames);
     }
   }
-  extractAttachmentNames(data.payload);
+  if (data.payload) {
+    extractAttachmentNames(data.payload);
+  }
 
   let unsubscribeLink = getHeaderValue("List-Unsubscribe");
   let rawBodyHtml = "";
   let rawBodyPlain = "";
 
-  function extractRawBodyParts(payload: GmailMessagePart) {
+  function extractRawBodyParts(payload: GmailMessagePart | GmailApiSchemaPart) {
     if (!payload) return;
     if (payload.mimeType === "text/html" && payload.body?.data) {
       rawBodyHtml = decodeBase64Url(payload.body.data);
@@ -202,7 +234,9 @@ function parseGmailMessage(data: GmailApiMessage): GmailMessage {
       payload.parts.forEach(extractRawBodyParts);
     }
   }
-  extractRawBodyParts(data.payload); // Enhance unsubscribe link extraction
+  if (data.payload) {
+    extractRawBodyParts(data.payload); // Enhance unsubscribe link extraction
+  }
 
   if (unsubscribeLink) {
     const match = unsubscribeLink.match(/<(https?:\/\/[^>]+)>/);
@@ -232,19 +266,40 @@ function parseGmailMessage(data: GmailApiMessage): GmailMessage {
   }
 
   return {
-    id: data.id,
+    id: data.id || '',
     subject,
     body,
     sender,
     recipients,
     unsubscribeLink,
     dateReceived,
-    emailUrl: `https://mail.google.com/mail/u/0/#inbox/${data.threadId}`,
+    emailUrl: `https://mail.google.com/mail/u/0/#inbox/${data.threadId || ''}`,
     attachmentNames,
   };
 }
 
 // --- Public API Functions ---
+
+/**
+ * Creates a Gmail client with OAuth2 authentication
+ */
+function createGmailClient(accessToken: string) {
+  if (!accessToken) {
+    throw new Error('Access token is required');
+  }
+
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+
+  // Set up automatic token refresh if needed
+  auth.on('tokens', (tokens) => {
+    if (tokens.access_token) {
+      logger.info('Access token refreshed');
+    }
+  });
+
+  return google.gmail({ version: 'v1', auth });
+}
 
 /**
  * Fetches a list of recent message IDs from the Gmail API.
@@ -255,20 +310,31 @@ export async function fetchMessagePage(
   batchSize = 100,
 ): Promise<{ messages: { id: string }[]; nextPageToken?: string }> {
   try {
-    const response = await axios.get(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: {
-          maxResults: batchSize,
-          q: "newer_than:3d", // Only check emails from the last 3 days
-          pageToken,
-        },
-      },
-    );
-    return response.data;
+    const gmail = createGmailClient(accessToken);
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      maxResults: batchSize,
+      q: "newer_than:3d", // Only check emails from the last 3 days
+      pageToken,
+    });
+    return {
+      messages: response.data.messages?.filter((msg): msg is { id: string } => msg.id !== undefined) || [],
+      nextPageToken: response.data.nextPageToken || undefined,
+    };
   } catch (error) {
     logger.error("Failed to fetch message page from Gmail API.", error);
+
+    // Enhanced error handling for authentication issues
+    if (isGoogleApiError(error)) {
+      const status = error.response?.status;
+      if (status === 401) {
+        logger.error("Authentication failed. Access token may be expired or invalid.");
+        throw new Error('Authentication failed. Please re-authenticate with Google.');
+      } else if (status === 403) {
+        logger.error("Access forbidden. Insufficient permissions for Gmail API.");
+        throw new Error('Insufficient permissions. Please ensure Gmail API access is granted.');
+      }
+    }
     throw error;
   }
 }
@@ -280,19 +346,33 @@ export async function fetchFullMessageDetails(
   messageIds: string[],
   accessToken: string,
 ): Promise<GmailMessage[]> {
+  const gmail = createGmailClient(accessToken);
   const concurrencyLimit = 10;
   return fetchWithAdaptiveConcurrency<string, GmailMessage>(
     messageIds,
     concurrencyLimit,
     async (id: string) => {
       return fetchWithRetry(async () => {
-        const response = await axios.get(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          },
-        );
-        return parseGmailMessage(response.data);
+        try {
+          const response = await gmail.users.messages.get({
+            userId: 'me',
+            id: id,
+            format: 'full',
+          });
+          return parseGmailMessage(response.data);
+        } catch (error) {
+          if (isGoogleApiError(error)) {
+            const status = error.response?.status;
+            if (status === 401) {
+              logger.error("Authentication failed while fetching message details.");
+              throw new Error('Authentication failed. Please re-authenticate with Google.');
+            } else if (status === 403) {
+              logger.error(`Access forbidden for message ${id}. Insufficient permissions.`);
+              throw new Error('Insufficient permissions. Please ensure Gmail API access is granted.');
+            }
+          }
+          throw error;
+        }
       });
     },
   );

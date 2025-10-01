@@ -2,7 +2,7 @@
 
 /**
  * NextAuth.js API Route Handler
- * * This file dynamically handles all API requests for NextAuth.js.
+ * This file dynamically handles all API requests for NextAuth.js.
  * It's crucial for authentication flows, including sign-in, sign-out,
  * session management, and OAuth callbacks.
  */
@@ -15,7 +15,47 @@ export const runtime = "nodejs";
 // This object contains the configured GET and POST functions.
 import { handlers } from "@/auth";
 
+// Wrapper to add better error logging for auth requests
+function withErrorLogging(handler: (req: Request) => Promise<Response>) {
+  return async (req: Request) => {
+    try {
+      const url = new URL(req.url);
+      console.log(`[AUTH] ${req.method} ${url.pathname} - ${url.search}`);
+
+      const response = await handler(req);
+
+      // Log redirect responses for debugging
+      if (response.status === 302) {
+        const location = response.headers.get('location');
+        console.log(`[AUTH] Redirecting to: ${location}`);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('[AUTH] Error handling request:', error);
+      console.error('[AUTH] Request URL:', req.url);
+      console.error('[AUTH] Request method:', req.method);
+
+      // Return a more helpful error response
+      return new Response(
+        JSON.stringify({
+          error: 'Authentication service error',
+          message: 'There was an error processing your authentication request.',
+          details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+  };
+}
+
 // Destructure and export the GET and POST methods from the handlers.
 // Next.js automatically maps these exports to the corresponding HTTP methods
 // for any request made to the /api/auth/* path.
-export const { GET, POST } = handlers;
+export const { GET, POST } = {
+  GET: withErrorLogging(handlers.GET as (req: Request) => Promise<Response>),
+  POST: withErrorLogging(handlers.POST as (req: Request) => Promise<Response>),
+};

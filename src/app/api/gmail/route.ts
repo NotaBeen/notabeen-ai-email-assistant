@@ -39,6 +39,29 @@ interface ProcessedEmail {
   precis: string; // Add other relevant fields as needed
 }
 
+interface ProcessingError {
+  messageId: string;
+  subject: string;
+  error: string;
+  isRateLimit: boolean;
+}
+
+interface RateLimitInfo {
+  quotaExceeded: boolean;
+  retryAfter?: number;
+  quotaMetric?: string;
+  quotaLimit?: string;
+  retryDelay?: string;
+  helpUrl?: string;
+}
+
+interface QueueStats {
+  total: number;
+  pending: number;
+  processing: number;
+  averageWaitTime: number;
+}
+
 /**
  * Main function to fetch, process, and save emails.
  * This function MUST be defined outside of the GET export to be globally accessible.
@@ -47,7 +70,16 @@ async function getAndProcessGmailEmails(
   accessToken: string,
   pageSize = 100,
   pageToken?: string,
-): Promise<{ emails: ProcessedEmail[]; nextPageToken?: string }> {
+): Promise<{
+  emails: ProcessedEmail[];
+  nextPageToken?: string;
+  processingErrors?: {
+    count: number;
+    errors: ProcessingError[];
+  };
+  rateLimitInfo?: RateLimitInfo;
+  queueStats?: QueueStats;
+}> {
   try {
     // 1. Fetch the list of messages from Gmail API (list messages)
     const page = await fetchMessagePage(accessToken, pageToken, pageSize);
@@ -65,9 +97,9 @@ async function getAndProcessGmailEmails(
 
     const newMessages = await filterNewMessages(messages); // 4. Generate precis, save to DB, and return the processed emails
 
-    const messagesWithPrecis = await generatePrecisForNewMessages(newMessages); // Map to ProcessedEmail shape
+    const result = await generatePrecisForNewMessages(newMessages); // Map to ProcessedEmail shape
 
-    const processedEmails: ProcessedEmail[] = messagesWithPrecis.map((msg) => ({
+    const processedEmails: ProcessedEmail[] = result.processedMessages.map((msg) => ({
       id: msg.id,
       subject: msg.subject,
       from: msg.sender || "", // Use the correct property for sender
@@ -81,7 +113,22 @@ async function getAndProcessGmailEmails(
           : (msg.precis?.summary ?? ""),
     }));
 
-    return { emails: processedEmails, nextPageToken: page.nextPageToken };
+    // Return enhanced response with error and rate limit information
+    return {
+      emails: processedEmails,
+      nextPageToken: page.nextPageToken,
+      processingErrors: result.errors.length > 0 ? {
+        count: result.errors.length,
+        errors: result.errors.map(e => ({
+          messageId: e.message.id,
+          subject: e.message.subject,
+          error: e.error.message,
+          isRateLimit: e.isRateLimit
+        }))
+      } : undefined,
+      rateLimitInfo: result.rateLimitInfo,
+      queueStats: result.queueStats
+    };
   } catch (error) {
     logger.error("Error in getAndProcessGmailEmails:", error);
     throw error;
@@ -138,28 +185,64 @@ export async function GET(req: NextRequest) {
     }
 
     // This line is now correctly referencing the function defined above
-    const { emails, nextPageToken } = await getAndProcessGmailEmails(
+    const result = await getAndProcessGmailEmails(
       idpAccessToken,
       pageSize,
       pageToken,
     );
 
+    const { emails, nextPageToken, processingErrors, rateLimitInfo, queueStats } = result;
+
     if (loggingEnabled) {
       logger.info(
         `Finished processing. Found ${emails.length} new emails for user: ${userId}.`,
       );
+      if (processingErrors) {
+        logger.warn(`${processingErrors.count} emails failed to process during this batch.`);
+      }
+      if (rateLimitInfo?.quotaExceeded) {
+        logger.warn(`Rate limits were exceeded during processing.`);
+      }
+    }
+
+    // Construct appropriate response message based on results
+    let message = "Emails fetched and processed successfully.";
+    let status = 200;
+
+    if (queueStats) {
+      // Large batch was queued for background processing
+      message = `${emails.length} emails processed immediately. ${queueStats.total} emails queued for background processing (pending: ${queueStats.pending}, processing: ${queueStats.processing}).`;
+      if (queueStats.averageWaitTime > 0) {
+        message += ` Average wait time: ${Math.round(queueStats.averageWaitTime / 1000)}s.`;
+      }
+    } else if (rateLimitInfo?.quotaExceeded) {
+      message = `Rate limits exceeded. Please try again later.`;
+      if (rateLimitInfo.quotaLimit) {
+        message += ` Quota limit: ${rateLimitInfo.quotaLimit}.`;
+      }
+      if (rateLimitInfo.retryDelay) {
+        message += ` Retry after ${rateLimitInfo.retryDelay}.`;
+      } else if (rateLimitInfo.retryAfter) {
+        message += ` Retry in ${Math.ceil(rateLimitInfo.retryAfter / 1000)} seconds.`;
+      }
+      status = 429; // Too Many Requests
+    } else if (processingErrors && processingErrors.count > 0) {
+      message = `Partial success: ${emails.length} emails processed, ${processingErrors.count} failed.`;
+      status = 207; // Multi-Status (some successes, some failures)
+    } else if (emails.length === 0) {
+      message = "No new emails found or all emails have been processed already.";
     }
 
     return NextResponse.json(
       {
-        message:
-          emails.length > 0
-            ? "Emails fetched and processed successfully."
-            : "No new emails found or all emails have been processed already.",
+        message,
         emails,
         nextPageToken,
+        processingErrors,
+        rateLimitInfo,
+        queueStats,
       },
-      { status: 200 },
+      { status },
     );
   } catch (error) {
     logger.error(`Error in GET /api/gmail:`, error);

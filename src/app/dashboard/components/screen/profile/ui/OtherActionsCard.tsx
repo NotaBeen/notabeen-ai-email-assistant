@@ -10,15 +10,12 @@ import VpnKeyIcon from "@mui/icons-material/VpnKey"; // Changed icon to be more 
 export function OtherActionsCard() {
   /**
    * Redirects the user to the Google OAuth flow to re-grant necessary permissions.
-   * NOTE: The target URL uses Auth0/NextAuth-specific parameters and scopes for Gmail.
-   * This logic should be updated to a NextAuth-only or generic OAuth flow if the
-   * authentication implementation changes significantly.
+   * Uses a simple approach that should work reliably with NextAuth v5.
    */
   const handleGrantPermissions = () => {
-    // This is typically the URL used to initiate the OAuth consent flow.
-    // Ensure this path correctly handles the provider (Google) and required scopes.
-    window.location.href =
-      "/api/auth/signin/google?scope=openid%20profile%20email%20https://www.googleapis.com/auth/gmail.readonly&prompt=consent";
+    // Use the standard NextAuth sign-in URL
+    // The provider is already configured with the Gmail scope in auth.ts
+    window.location.href = "/api/auth/signin/google";
   };
 
   // NOTE: I've updated the `window.location.href` to use the standard NextAuth `signin` endpoint,

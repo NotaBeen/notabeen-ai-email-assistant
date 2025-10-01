@@ -149,10 +149,33 @@ if (process.env.NODE_ENV === "development") {
 
 export const getMongoClient = () => clientPromise;
 
+// --- Environment Variable Validation ---
+const requiredEnvVars = {
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL || process.env.AUTH_URL,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  AUTH_SECRET: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  MONGODB_URI: process.env.MONGODB_URI,
+  MONGO_CLIENT: process.env.MONGO_CLIENT,
+};
+
+// Log missing environment variables for debugging
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([key, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  console.error('Missing required environment variables:', missingVars);
+  console.error('Please check your .env file and ensure all required variables are set.');
+}
+
 // --- NextAuth Configuration ---
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true, 
-  
+  trustHost: true,
+
+  // Debug mode for development
+  debug: process.env.NODE_ENV === 'development',
+
   adapter: PatchedMongoDBAdapter(clientPromise, {
     databaseName: MONGODB_CLIENT_NAME,
     useEncryption: false,
