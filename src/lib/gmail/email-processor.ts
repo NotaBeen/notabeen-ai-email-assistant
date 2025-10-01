@@ -52,8 +52,9 @@ export interface PrecisResult {
     snippet: string;
   } | null;
 }
-
-// Enhanced error handling for Gemini API responses
+/**
+ * Enhanced error handling for Gemini API responses
+ */
 function parseGeminiError(response: Response, errorText: string): GeminiRateLimitError | Error {
   try {
     const errorData = JSON.parse(errorText);
