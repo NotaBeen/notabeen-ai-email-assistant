@@ -32,6 +32,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # # Step 4: Runs the test suite
+      # Step 4: Runs the build script
+      - name: Build project
+        run: npm run build
+
+      # # Step 5: Runs the test suite
       # - name: Run tests
       #   run: npm test
