@@ -5,6 +5,7 @@ name: CI
 # This trigger runs in the context of the base repository, which has access to secrets.
 on:
   pull_request_target:
+    types: [opened, synchronize, reopened]
     branches:
       - main
       - master
