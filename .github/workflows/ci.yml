@@ -34,8 +34,8 @@ jobs:
 
       # Step 4: Runs the build script
       - name: Build project
+        run: npm run build
         env:
-          # --- REQUIRED SECRETS (Must be configured in GitHub Repository Settings) ---
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -43,13 +43,7 @@ jobs:
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-          # --- Optional/Non-Sensitive Variable ---
-          # For CI builds on PRs, NEXTAUTH_URL can often be set to a placeholder
-          # since the app isn't actually being hosted yet.
           NEXTAUTH_URL: http://localhost:3000
-
-        run: npm run build
 
       # # Step 5: Runs the test suite
       # - name: Run tests
