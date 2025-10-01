@@ -56,6 +56,6 @@ function withErrorLogging(handler: (req: Request) => Promise<Response>) {
 // Next.js automatically maps these exports to the corresponding HTTP methods
 // for any request made to the /api/auth/* path.
 export const { GET, POST } = {
-  GET: withErrorLogging(handlers.GET as any),
-  POST: withErrorLogging(handlers.POST as any),
+  GET: withErrorLogging(handlers.GET as (req: Request) => Promise<Response>),
+  POST: withErrorLogging(handlers.POST as (req: Request) => Promise<Response>),
 };

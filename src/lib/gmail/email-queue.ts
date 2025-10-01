@@ -2,7 +2,7 @@
 
 import { logger } from "@/utils/logger";
 import { GmailMessage } from "./gmail-client";
-import { processEmailsInBatches } from "./batch-processor";
+import { processEmailsInBatches } from "./batchProcessor/batch-processor";
 
 /**
  * Queue-based email processing system for handling large volumes of emails
@@ -15,7 +15,7 @@ interface QueuedEmail extends GmailMessage {
   retryCount: number;
   lastAttemptAt?: Date;
   nextRetryAt?: Date;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
 }
 
 interface QueueStats {
@@ -51,13 +51,17 @@ class EmailProcessingQueue {
   /**
    * Add emails to the processing queue
    */
-  async addEmails(messages: GmailMessage[]): Promise<{ accepted: number; rejected: number }> {
+  async addEmails(
+    messages: GmailMessage[]
+  ): Promise<{ accepted: number; rejected: number }> {
     let accepted = 0;
     let rejected = 0;
 
     for (const message of messages) {
       if (this.queue.size >= this.MAX_QUEUE_SIZE) {
-        logger.warn(`Queue is full (${this.MAX_QUEUE_SIZE} emails). Rejecting new emails.`);
+        logger.warn(
+          `Queue is full (${this.MAX_QUEUE_SIZE} emails). Rejecting new emails.`
+        );
         rejected++;
         continue;
       }
@@ -71,14 +75,16 @@ class EmailProcessingQueue {
         ...message,
         addedAt: new Date(),
         retryCount: 0,
-        priority: this.calculatePriority(message)
+        priority: this.calculatePriority(message),
       };
 
       this.queue.set(message.id, queuedEmail);
       accepted++;
     }
 
-    logger.info(`Added ${accepted} emails to queue. Rejected ${rejected} due to capacity limits.`);
+    logger.info(
+      `Added ${accepted} emails to queue. Rejected ${rejected} due to capacity limits.`
+    );
     this.logStats();
 
     return { accepted, rejected };
@@ -87,20 +93,20 @@ class EmailProcessingQueue {
   /**
    * Calculate processing priority based on email characteristics
    */
-  private calculatePriority(message: GmailMessage): 'high' | 'medium' | 'low' {
+  private calculatePriority(message: GmailMessage): "high" | "medium" | "low" {
     // High priority: recent emails (last 24 hours)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     if (message.dateReceived > oneDayAgo) {
-      return 'high';
+      return "high";
     }
 
     // Medium priority: emails from last week
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     if (message.dateReceived > oneWeekAgo) {
-      return 'medium';
+      return "medium";
     }
 
-    return 'low';
+    return "low";
   }
 
   /**
@@ -112,7 +118,7 @@ class EmailProcessingQueue {
     }
 
     this.processing = true;
-    logger.info('Starting email queue processing...');
+    logger.info("Starting email queue processing...");
 
     const processLoop = async () => {
       if (this.isShuttingDown) {
@@ -122,7 +128,7 @@ class EmailProcessingQueue {
       try {
         await this.processBatch();
       } catch (error) {
-        logger.error('Error in queue processing loop:', error);
+        logger.error("Error in queue processing loop:", error);
       }
 
       // Schedule next processing
@@ -147,7 +153,9 @@ class EmailProcessingQueue {
       .slice(0, this.BATCH_SIZE)
       .sort((a, b) => this.getPriorityScore(b) - this.getPriorityScore(a));
 
-    logger.info(`Processing batch of ${emailsToProcess.length} emails from queue`);
+    logger.info(
+      `Processing batch of ${emailsToProcess.length} emails from queue`
+    );
 
     for (const queuedEmail of emailsToProcess) {
       queuedEmail.lastAttemptAt = new Date();
@@ -166,10 +174,11 @@ class EmailProcessingQueue {
         this.handleFailedEmail(message as QueuedEmail, error, isRateLimit);
       }
 
-      logger.info(`Batch processing complete: ${result.successful.length} successful, ${result.failed.length} failed`);
-
+      logger.info(
+        `Batch processing complete: ${result.successful.length} successful, ${result.failed.length} failed`
+      );
     } catch (error) {
-      logger.error('Batch processing failed:', error);
+      logger.error("Batch processing failed:", error);
 
       // Mark all emails in batch as failed
       for (const queuedEmail of emailsToProcess) {
@@ -183,8 +192,8 @@ class EmailProcessingQueue {
    */
   private getReadyEmails(): QueuedEmail[] {
     const now = new Date();
-    return Array.from(this.queue.values()).filter(email =>
-      !email.nextRetryAt || email.nextRetryAt <= now
+    return Array.from(this.queue.values()).filter(
+      (email) => !email.nextRetryAt || email.nextRetryAt <= now
     );
   }
 
@@ -193,21 +202,32 @@ class EmailProcessingQueue {
    */
   private getPriorityScore(email: QueuedEmail): number {
     switch (email.priority) {
-      case 'high': return 3;
-      case 'medium': return 2;
-      case 'low': return 1;
-      default: return 1;
+      case "high":
+        return 3;
+      case "medium":
+        return 2;
+      case "low":
+        return 1;
+      default:
+        return 1;
     }
   }
 
   /**
    * Handle failed email processing
    */
-  private handleFailedEmail(email: QueuedEmail, error: Error, isRateLimit: boolean): void {
+  private handleFailedEmail(
+    email: QueuedEmail,
+    error: Error,
+    isRateLimit: boolean
+  ): void {
     email.retryCount++;
 
     if (email.retryCount >= this.MAX_RETRIES) {
-      logger.error(`Email ${email.id} failed after ${email.retryCount} attempts. Removing from queue.`, error);
+      logger.error(
+        `Email ${email.id} failed after ${email.retryCount} attempts. Removing from queue.`,
+        error
+      );
       this.queue.delete(email.id);
       return;
     }
@@ -224,7 +244,9 @@ class EmailProcessingQueue {
 
     email.nextRetryAt = new Date(Date.now() + retryDelay);
 
-    logger.warn(`Email ${email.id} failed (attempt ${email.retryCount}/${this.MAX_RETRIES}). Retrying in ${Math.round(retryDelay / 1000)} seconds.`);
+    logger.warn(
+      `Email ${email.id} failed (attempt ${email.retryCount}/${this.MAX_RETRIES}). Retrying in ${Math.round(retryDelay / 1000)} seconds.`
+    );
   }
 
   /**
@@ -241,7 +263,9 @@ class EmailProcessingQueue {
    */
   private logStats(): void {
     const stats = this.getStats();
-    logger.info(`Queue stats: Total: ${stats.total}, Pending: ${stats.pending}, Processing: ${stats.processing}, Completed: ${stats.completed}, Failed: ${stats.failed}, Avg wait: ${Math.round(stats.averageWaitTime / 1000)}s`);
+    logger.info(
+      `Queue stats: Total: ${stats.total}, Pending: ${stats.pending}, Processing: ${stats.processing}, Completed: ${stats.completed}, Failed: ${stats.failed}, Avg wait: ${Math.round(stats.averageWaitTime / 1000)}s`
+    );
   }
 
   /**
@@ -251,8 +275,10 @@ class EmailProcessingQueue {
     const now = new Date();
     const emails = Array.from(this.queue.values());
 
-    const pending = emails.filter(e => !e.lastAttemptAt).length;
-    const processing = emails.filter(e => e.lastAttemptAt && !e.nextRetryAt).length;
+    const pending = emails.filter((e) => !e.lastAttemptAt).length;
+    const processing = emails.filter(
+      (e) => e.lastAttemptAt && !e.nextRetryAt
+    ).length;
 
     const totalWaitTime = emails.reduce((sum, email) => {
       return sum + (now.getTime() - email.addedAt.getTime());
@@ -264,7 +290,7 @@ class EmailProcessingQueue {
       processing,
       completed: 0, // We don't track completed separately since they're removed from queue
       failed: 0, // We don't track failed separately since they're removed from queue
-      averageWaitTime: emails.length > 0 ? totalWaitTime / emails.length : 0
+      averageWaitTime: emails.length > 0 ? totalWaitTime / emails.length : 0,
     };
   }
 
@@ -272,7 +298,7 @@ class EmailProcessingQueue {
    * Gracefully shutdown the queue
    */
   async shutdown(): Promise<void> {
-    logger.info('Shutting down email processing queue...');
+    logger.info("Shutting down email processing queue...");
     this.isShuttingDown = true;
 
     if (this.processingTimer) {
@@ -284,7 +310,7 @@ class EmailProcessingQueue {
     }
 
     this.processing = false;
-    logger.info('Email processing queue shutdown complete.');
+    logger.info("Email processing queue shutdown complete.");
   }
 
   /**
@@ -335,7 +361,9 @@ export function initializeEmailQueue(): EmailProcessingQueue {
 /**
  * Add emails to the processing queue
  */
-export async function queueEmails(messages: GmailMessage[]): Promise<{ accepted: number; rejected: number }> {
+export async function queueEmails(
+  messages: GmailMessage[]
+): Promise<{ accepted: number; rejected: number }> {
   const queue = getEmailQueue();
   return await queue.addEmails(messages);
 }
