@@ -1,22 +1,58 @@
 // src/components/LoadingOverlay.tsx
 
 "use client";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
-  Backdrop,
   CircularProgress,
   Typography,
   LinearProgress,
   Chip,
   useTheme,
-  alpha
+  alpha,
+  Paper,
+  IconButton,
+  Tooltip,
+  Fab,
+  Fade,
+  Grow
 } from "@mui/material";
 import {
-  Email as EmailIcon,
-  SmartToy as AiIcon,
-  CloudQueue as QueueIcon,
-  Refresh as RefreshIcon
+  Close as CloseIcon,
+  Minimize as MinimizeIcon
 } from "@mui/icons-material";
+import { calculateQueueSnapshot } from "./calculateQueueSnapshot";
+
+export type QueueStats = {
+  total: number;
+  pending: number;
+  processing: number;
+  completed: number;
+};
+
+export type QueueSnapshot = {
+  total: number;
+  pending: number;
+  processing: number;
+  completed: number;
+  processed: number;
+  percentage: number;
+  isActive: boolean;
+  raw?: QueueStats;
+};
+
+const INITIAL_QUEUE_SNAPSHOT: QueueSnapshot = {
+  total: 0,
+  pending: 0,
+  processing: 0,
+  completed: 0,
+  processed: 0,
+  percentage: 0,
+  isActive: false,
+  raw: undefined
+};
+
+const HIDE_GRACE_PERIOD_MS = 2000;
 
 interface LoadingOverlayProps {
   isOpen: boolean;
@@ -24,183 +60,371 @@ interface LoadingOverlayProps {
   progress?: number;
   showProgress?: boolean;
   operationType?: 'refresh' | 'processing' | 'queue' | 'initial';
-  queueStats?: {
-    total: number;
-    pending: number;
-    processing: number;
-    completed: number;
-  };
+  queueStats?: QueueStats;
+  enableQueueMonitoring?: boolean;
+  pollIntervalMs?: number;
+  queueStatusEndpoint?: string;
 }
 
 function LoadingOverlay({
-  isOpen,
-  message,
-  progress,
-  showProgress = false,
-  operationType = 'processing',
-  queueStats
-}: LoadingOverlayProps) {
+  queueStats,
+  enableQueueMonitoring = false,
+  pollIntervalMs = 3000,
+  queueStatusEndpoint = "/api/gmail/queue-status"
+}: Readonly<LoadingOverlayProps>) {
   const theme = useTheme();
 
-  const getOperationIcon = () => {
-    switch (operationType) {
-      case 'refresh':
-        return <RefreshIcon sx={{ fontSize: 32, color: 'primary.main' }} />;
-      case 'queue':
-        return <QueueIcon sx={{ fontSize: 32, color: 'info.main' }} />;
-      case 'initial':
-        return <CircularProgress size={32} />;
-      default:
-        return <AiIcon sx={{ fontSize: 32, color: 'secondary.main' }} />;
-    }
-  };
+  const [persistentState, setPersistentState] = useState<{
+    show: boolean;
+    isMinimized: boolean;
+  }>({
+    show: false,
+    isMinimized: false
+  });
 
-  const getDefaultMessage = () => {
-    switch (operationType) {
-      case 'refresh':
-        return 'Refreshing your emails...';
-      case 'queue':
-        return 'Processing your email queue...';
-      case 'initial':
-        return 'Loading your workspace...';
-      default:
-        return 'Analyzing emails with AI...';
-    }
-  };
+  const [queueSnapshot, setQueueSnapshot] = useState<QueueSnapshot>(INITIAL_QUEUE_SNAPSHOT);
 
-  const displayMessage = message || getDefaultMessage();
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queuePollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const getProgressColor = () => {
-    switch (operationType) {
-      case 'refresh':
-        return 'primary';
-      case 'queue':
-        return 'info';
-      default:
-        return 'secondary';
+  const clearHideTimeout = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
     }
-  };
+  }, []);
+
+  const handleClosePersistent = useCallback(() => {
+    setPersistentState(prev => ({
+      ...prev,
+      show: false
+    }));
+  }, []);
+
+  const handleToggleMinimize = useCallback(() => {
+    setPersistentState(prev => ({
+      ...prev,
+      isMinimized: !prev.isMinimized
+    }));
+  }, []);
+
+  // Only update state if snapshot actually changes
+  const updatePersistentQueueState = useCallback((nextStats?: QueueStats, isActive?: boolean) => {
+    setQueueSnapshot(previousSnapshot => {
+      const nextSnapshot = calculateQueueSnapshot(previousSnapshot, nextStats, isActive);
+      // Shallow compare all fields using keyof
+      const isSame = (Object.keys(nextSnapshot) as (keyof QueueSnapshot)[]).every(
+        key => nextSnapshot[key] === previousSnapshot[key]
+      );
+      if (isSame) return previousSnapshot;
+
+      // Flattened logic for linter
+      if (nextSnapshot.isActive && nextSnapshot.total > 0) {
+        clearHideTimeout();
+        setPersistentState(prev => (prev.show ? prev : { ...prev, show: true }));
+        return nextSnapshot;
+      }
+
+      if (nextSnapshot.total > 0 && nextSnapshot.processed >= nextSnapshot.total) {
+        clearHideTimeout();
+        const hidePersistent = () => {
+          setPersistentState(prev => (prev.show ? { ...prev, show: false } : prev));
+        };
+        hideTimeoutRef.current = setTimeout(hidePersistent, HIDE_GRACE_PERIOD_MS);
+        return nextSnapshot;
+      }
+
+      if (nextSnapshot.total === 0) {
+        clearHideTimeout();
+        setPersistentState(prev => (prev.show ? { ...prev, show: false } : prev));
+        return nextSnapshot;
+      }
+
+      return nextSnapshot;
+    });
+  }, [clearHideTimeout]);
+
+  const fetchQueueStatus = useCallback(async () => {
+    if (!enableQueueMonitoring) return;
+
+    try {
+      const response = await fetch(queueStatusEndpoint, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        console.error("Queue status API returned error:", response.status);
+        return;
+      }
+
+      const data = await response.json();
+      const { queueStats: fetchedStats, isActive } = data as {
+        queueStats?: QueueStats;
+        isActive?: boolean;
+      };
+
+      updatePersistentQueueState(fetchedStats, isActive);
+    } catch (error) {
+      console.error("Failed to check queue status:", error);
+    }
+  }, [enableQueueMonitoring, queueStatusEndpoint, updatePersistentQueueState]);
+
+  useEffect(() => {
+    if (!enableQueueMonitoring) {
+      setPersistentState(prev => ({ ...prev, show: false }));
+      setQueueSnapshot(INITIAL_QUEUE_SNAPSHOT);
+      clearHideTimeout();
+      if (queuePollingIntervalRef.current) {
+        clearInterval(queuePollingIntervalRef.current);
+        queuePollingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    fetchQueueStatus();
+    queuePollingIntervalRef.current = setInterval(() => {
+      fetchQueueStatus();
+    }, pollIntervalMs);
+
+    return () => {
+      if (queuePollingIntervalRef.current) {
+        clearInterval(queuePollingIntervalRef.current);
+        queuePollingIntervalRef.current = null;
+      }
+      clearHideTimeout();
+    };
+  }, [enableQueueMonitoring, fetchQueueStatus, pollIntervalMs, clearHideTimeout]);
+
+  useEffect(() => {
+    if (queueStats) {
+      const hasActiveWork = (queueStats.pending ?? 0) + (queueStats.processing ?? 0) > 0;
+      updatePersistentQueueState(queueStats, hasActiveWork);
+    }
+  }, [queueStats, updatePersistentQueueState]);
+
+  const effectiveQueueStats = useMemo<QueueSnapshot | undefined>(() => {
+    if (queueSnapshot.total > 0 || queueSnapshot.isActive) {
+      return queueSnapshot;
+    }
+
+    if (queueStats && queueStats.total > 0) {
+      const total = queueStats.total;
+      const pending = queueStats.pending ?? 0;
+      const processing = queueStats.processing ?? 0;
+      const completed = queueStats.completed ?? 0;
+      const processed = Math.max(total - (pending + processing), completed);
+      const percentage = total > 0 ? (processed / total) * 100 : 0;
+
+      return {
+        total,
+        pending,
+        processing,
+        completed,
+        processed,
+        percentage,
+        isActive: pending + processing > 0,
+        raw: queueStats
+      };
+    }
+
+    return undefined;
+  }, [queueSnapshot, queueStats]);
+
+  // Calculate derived values once to prevent re-calculation on every render
+  const processedCount = effectiveQueueStats?.processed ?? 0;
+  const progressPercentage = effectiveQueueStats?.percentage ?? 0;
+  const shouldShowPersistent = Boolean(
+    persistentState.show && effectiveQueueStats && effectiveQueueStats.total > 0
+  );
 
   return (
-    <Backdrop
-      open={isOpen}
+    <PersistentQueueIndicator
+      shouldShowPersistent={shouldShowPersistent}
+      persistentState={persistentState}
+      effectiveQueueStats={effectiveQueueStats}
+      progressPercentage={progressPercentage}
+      processedCount={processedCount}
+      handleToggleMinimize={handleToggleMinimize}
+      handleClosePersistent={handleClosePersistent}
+      theme={theme}
+    />
+  );
+}
+
+// Memoized persistent queue indicator to prevent unnecessary rerenders
+interface PersistentQueueIndicatorProps {
+  shouldShowPersistent: boolean;
+  persistentState: { show: boolean; isMinimized: boolean };
+  effectiveQueueStats?: QueueSnapshot;
+  progressPercentage: number;
+  processedCount: number;
+  handleToggleMinimize: () => void;
+  handleClosePersistent: () => void;
+  theme: any;
+}
+
+const PersistentQueueIndicator = memo(function PersistentQueueIndicatorMemo(props: PersistentQueueIndicatorProps) {
+  const {
+    shouldShowPersistent,
+    persistentState,
+    effectiveQueueStats,
+    progressPercentage,
+    processedCount,
+    handleToggleMinimize,
+    handleClosePersistent,
+    theme
+  } = props;
+  // Always render, but control visibility with Fade/Grow
+  return (
+    <Box
       sx={{
-        zIndex: (theme) => theme.zIndex.modal + 1,
-        backgroundColor: alpha(theme.palette.background.default, 0.85),
-        backdropFilter: 'blur(4px)'
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: theme.zIndex.modal - 1,
+        pointerEvents: shouldShowPersistent ? 'auto' : 'none',
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 3,
-          p: 4,
-          backgroundColor: theme.palette.background.paper,
-          borderRadius: 3,
-          boxShadow: theme.shadows[8],
-          minWidth: 320,
-          maxWidth: 400
-        }}
-      >
-        {/* Icon */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {getOperationIcon()}
-          <Typography variant="h6" fontWeight={600}>
-            {displayMessage}
-          </Typography>
-        </Box>
+      <Fade in={shouldShowPersistent} timeout={{ enter: 300, exit: 200 }}>
+        <Box>
+          {!persistentState.isMinimized ? (
+            <Grow in={!persistentState.isMinimized} timeout={{ enter: 400, exit: 200 }}>
+              <Paper
+                elevation={8}
+                sx={{
+                  p: 2,
+                  minWidth: 280,
+                  maxWidth: 320,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `2px solid ${theme.palette.primary.main}`,
+                  borderRadius: 2,
+                  transition: 'all 0.3s ease-in-out',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={20} thickness={4} sx={{ color: 'primary.main' }} />
+                    <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+                      Processing Emails
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Tooltip title="Minimize">
+                      <IconButton size="small" onClick={handleToggleMinimize} sx={{ p: 0.5 }}>
+                        <MinimizeIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Close">
+                      <IconButton size="small" onClick={handleClosePersistent} sx={{ p: 0.5 }}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
 
-        {/* Progress Bar */}
-        {showProgress && typeof progress === 'number' && (
-          <Box sx={{ width: '100%' }}>
-            <LinearProgress
-              variant="determinate"
-              value={progress}
-              color={getProgressColor()}
-              sx={{
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: alpha(theme.palette.grey[500], 0.2)
-              }}
-            />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
-              {Math.round(progress)}% complete
-            </Typography>
-          </Box>
-        )}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, transition: 'all 0.2s ease-in-out' }}>
+                  {effectiveQueueStats?.total ?? 0} emails in queue
+                </Typography>
 
-        {/* Queue Statistics */}
-        {queueStats && (
-          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-              Queue Status
-            </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, transition: 'all 0.2s ease-in-out' }}>
+                  <Chip
+                    label={`${effectiveQueueStats?.pending ?? 0} Pending`}
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    sx={{ transition: 'all 0.2s ease-in-out' }}
+                  />
+                  <Chip
+                    label={`${effectiveQueueStats?.processing ?? 0} Processing`}
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                    sx={{ transition: 'all 0.2s ease-in-out' }}
+                  />
+                </Box>
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 1 }}>
-              <Chip
-                label={`${queueStats.pending} Pending`}
-                size="small"
-                color="warning"
-                variant="outlined"
-              />
-              <Chip
-                label={`${queueStats.processing} Processing`}
-                size="small"
-                color="info"
-                variant="outlined"
-              />
-              <Chip
-                label={`${queueStats.completed} Done`}
-                size="small"
-                color="success"
-                variant="outlined"
-              />
-            </Box>
-
-            {queueStats.total > 0 && (
-              <Box sx={{ width: '100%' }}>
                 <LinearProgress
                   variant="determinate"
-                  value={(queueStats.completed / queueStats.total) * 100}
+                  value={progressPercentage}
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: alpha(theme.palette.grey[500], 0.2)
+                    backgroundColor: alpha(theme.palette.grey[500], 0.2),
+                    mb: 1,
+                    transition: 'all 0.3s ease-in-out',
                   }}
                 />
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
-                  {queueStats.completed} of {queueStats.total} emails processed
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    display: 'block',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                >
+                  {processedCount} of {effectiveQueueStats?.total ?? 0} emails processed
                 </Typography>
-              </Box>
-            )}
-          </Box>
-        )}
 
-        {/* Additional Info */}
-        {operationType === 'processing' && (
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-            Our AI is analyzing your emails to extract important information
-            <br />
-            <Box component="span" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1 }}>
-              <EmailIcon fontSize="small" />
-              This may take a few moments for large batches
-            </Box>
-          </Typography>
-        )}
-
-        {operationType === 'queue' && (
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-            Emails are being processed in the background
-            <br />
-            You can continue using other features while this runs
-          </Typography>
-        )}
-      </Box>
-    </Backdrop>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
+                  Processing in background • You can continue using the app
+                </Typography>
+              </Paper>
+            </Grow>
+          ) : (
+            <Fade in={persistentState.isMinimized} timeout={{ enter: 300, exit: 200 }}>
+              <Tooltip title={`${effectiveQueueStats?.total ?? 0} emails being processed`} placement="left">
+                <Fab
+                  size="medium"
+                  color="primary"
+                  onClick={handleToggleMinimize}
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    transition: 'all 0.3s ease-in-out',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      transition: 'transform 0.2s ease-in-out'
+                    }
+                  }}
+                >
+                  <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                    <CircularProgress
+                      size={24}
+                      thickness={5}
+                      sx={{
+                        color: 'inherit',
+                        transition: 'all 0.2s ease-in-out'
+                      }}
+                    />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        color: 'inherit',
+                        fontSize: '0.6rem',
+                        fontWeight: 600,
+                        transition: 'all 0.2s ease-in-out'
+                      }}
+                    >
+                      {effectiveQueueStats?.total ?? 0}
+                    </Typography>
+                  </Box>
+                </Fab>
+              </Tooltip>
+            </Fade>
+          )}
+        </Box>
+      </Fade>
+    </Box>
   );
-}
+});
 
 export default LoadingOverlay;
