@@ -47,6 +47,8 @@ NotaBeen is an open-source email assistant that uses AI to help you manage your 
 
 ## Getting Started
 
+Setup video: https://www.youtube.com/watch?v=HmpXFbpzquU
+
 ### Prerequisites
 
 To run NotaBeen, you need:
@@ -75,7 +77,7 @@ Create a `.env.local` file in the root directory and add the following variables
 
 ```env
 # NextAuth & Security
-AUTH_SECRET="node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+AUTH_SECRET= node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 NEXTAUTH_URL="http://localhost:3000"
 
 # Google OAuth (Authentication & Gmail Access)
