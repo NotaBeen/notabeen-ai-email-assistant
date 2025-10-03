@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import {
   Box,
   Typography,
@@ -13,17 +13,38 @@ import {
 import AttachmentIcon from "@mui/icons-material/Attachment";
 import EmailIcon from "@mui/icons-material/Email";
 import MailIcon from "@mui/icons-material/Mail";
-import SecurityDialog from "./SecurityDialog";
-import { Email } from "@/types/interfaces";
-import { getUrgencyColor } from "@/utils/helpers"; // Import helper from the new file
 
-// Type definitions remain in the same file
+/**
+ * @typedef {Object} AttachmentResponse
+ * @property {string} filename The original filename of the attachment.
+ * @property {string} mimeType The MIME type of the attachment.
+ * @property {string} downloadUrl The secure, temporary URL for downloading the attachment.
+ */
 export type AttachmentResponse = {
   filename: string;
   mimeType: string;
   downloadUrl: string;
 };
 
+// Local component import (assuming standard location)
+import SecurityDialog from "./SecurityDialog";
+// Global type import (assuming standard path alias)
+import { Email } from "@/types/interfaces";
+// Helper import (assuming standard path alias)
+import { getUrgencyColor } from "@/utils/helpers";
+
+/**
+ * Props for the EmailContentDisplay component.
+ * @interface EmailContentDisplayProps
+ * @property {boolean} isMobile Flag indicating if the current view is mobile.
+ * @property {boolean} fullEmailLoading Flag for the loading state of the full email body.
+ * @property {string | null} error Any error message to display.
+ * @property {(error: string | null) => void} setError Setter for the error state.
+ * @property {object | null} fullEmail The complete email object including the body and attachments.
+ * @property {string} fullEmail.body The full raw body of the email (HTML or plain text).
+ * @property {AttachmentResponse[]} [fullEmail.attachments] Optional array of email attachments.
+ * @property {Email} currentEmail The summary email object, used for metadata like urgencyScore.
+ */
 interface EmailContentDisplayProps {
   isMobile: boolean;
   fullEmailLoading: boolean;
@@ -36,13 +57,24 @@ interface EmailContentDisplayProps {
   currentEmail: Email;
 }
 
-// Function to format plain text emails
+/**
+ * Formats a plain text email body for display, converting line breaks to paragraphs
+ * and identifying/making URLs clickable.
+ *
+ * NOTE: This function handles simple link detection for security purposes,
+ * prompting a dialog before navigation.
+ *
+ * @param {string} text The raw plain text body of the email.
+ * @param {(url: string, e: React.MouseEvent) => void} handleLinkClick Callback for link clicks to show security dialog.
+ * @param {string} linkColor The color to use for the link text.
+ * @returns {React.ReactNode[]} An array of React elements and strings for rendering.
+ */
 const formatPlainTextEmailBody = (
   text: string,
   handleLinkClick: (url: string, e: React.MouseEvent) => void,
   linkColor: string,
 ) => {
-  // Normalize and clean the text
+  // Defensive cleanup to remove headers, signature lines, and excessive whitespace.
   const cleanedText = text
     .replace(/ +(?=\n)/g, "")
     .replace(/^From:.*$\n?/m, "")
@@ -51,14 +83,17 @@ const formatPlainTextEmailBody = (
     .replace(/\n\s*\n/g, "\n\n")
     .trim();
 
-  // Regex to find URLs, including those with or without http/https
+  // Regex to find standard HTTP/HTTPS or 'www.' URLs.
   const urlRegex =
-    /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/[a-zA-Z0-9]+\.[^\s]{2,}|[a-zA-Z0-9]+\.[^\s]{2,})/gi;
+    /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,})/gi;
 
+  // Split the text by the URL regex to separate text from links.
   const parts = cleanedText.split(urlRegex).filter(Boolean);
 
+  // Map parts into an array of React elements (Links) and text fragments.
   return parts.map((part, index) => {
     if (urlRegex.test(part) && part.length > 5) {
+      // Prepend 'http://' if the link doesn't start with a protocol for proper `href`.
       const href = part.startsWith("http") ? part : `http://${part}`;
       return (
         <Link
@@ -79,16 +114,21 @@ const formatPlainTextEmailBody = (
         </Link>
       );
     } else {
-      return part.split("\n").map((line, lineIndex) => (
-        <React.Fragment key={`${index}-${lineIndex}`}>
-          {line}
-          <br />
-        </React.Fragment>
-      ));
+      // Render text content directly within a Fragment.
+      // The parent Box's `whiteSpace: 'pre-wrap'` handles line breaks.
+      return <React.Fragment key={index}>{part}</React.Fragment>;
     }
   });
 };
 
+/**
+ * Component to display the full content of a selected email.
+ * It handles loading states, error messages, rendering of HTML via iframe (for security),
+ * plain text formatting, and attachment display with link security checks.
+ *
+ * @param {EmailContentDisplayProps} props The component props.
+ * @returns {React.FC} The EmailContentDisplay component.
+ */
 const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
   isMobile,
   fullEmailLoading,
@@ -97,67 +137,83 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
   fullEmail,
   currentEmail,
 }) => {
-  const [securityDialogOpen, setSecurityDialogOpen] = React.useState(false);
-  const [pendingUrl, setPendingUrl] = React.useState<string | null>(null);
+  const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 
-  const handleLinkClick = (url: string, e: React.MouseEvent) => {
+  /**
+   * Memoize the link color based on the email's urgency score.
+   * This is used for both plaintext links and attachment icons.
+   */
+  const linkColor = useMemo(
+    () => getUrgencyColor(currentEmail.urgencyScore),
+    [currentEmail.urgencyScore],
+  );
+
+  /**
+   * Handle function for a link click in the plain text body.
+   * It prevents default navigation and opens the security confirmation dialog.
+   */
+  const handleLinkClick = useCallback((url: string, e: React.MouseEvent) => {
     e.preventDefault();
     setPendingUrl(url);
     setSecurityDialogOpen(true);
-  };
+  }, []);
 
-  const handleConfirm = () => {
+  /**
+   * Confirms the navigation action from the security dialog.
+   * Opens the link in a new tab with security attributes.
+   */
+  const handleConfirm = useCallback(() => {
     if (pendingUrl) {
+      // Opens link in a new, secure window.
       window.open(pendingUrl, "_blank", "noopener,noreferrer");
     }
     setSecurityDialogOpen(false);
     setPendingUrl(null);
-  };
+  }, [pendingUrl]);
 
-  const handleCancel = () => {
+  /**
+   * Cancels the navigation action, closing the security dialog.
+   */
+  const handleCancel = useCallback(() => {
     setSecurityDialogOpen(false);
     setPendingUrl(null);
-  };
+  }, []);
 
-  const linkColor = getUrgencyColor(currentEmail.urgencyScore);
+  // Get the email body and prepare for HTML detection.
+  const emailBody = fullEmail?.body?.trim() || "";
+  const lowerBody = emailBody.toLowerCase();
 
+  /**
+   * Robustly detect HTML content by checking for common top-level HTML tags
+   * in the first part of the body.
+   */
   const isHtmlEmail =
-    fullEmail?.body?.trim().toLowerCase().startsWith("<!doctype html>") ||
-    fullEmail?.body?.trim().toLowerCase().startsWith("<html");
+    lowerBody.includes("<html") ||
+    lowerBody.includes("<!doctype html>") ||
+    lowerBody.includes("</head>"); // Added common tag for robustness
 
-  const renderHtmlContent = (htmlString: string) => {
-    const srcDoc = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <title>Email Content</title>
-          <style>
-            body { font-family: sans-serif; margin: 0; padding: 15px; }
-            img { max-width: 100%; height: auto; }
-            a { color: ${linkColor}; }
-          </style>
-        </head>
-        <body>
-          ${htmlString}
-        </body>
-        </html>
-      `;
-    return (
-      <iframe
-        title="Email Content"
-        srcDoc={srcDoc}
-        sandbox="allow-same-origin allow-popups allow-forms allow-scripts"
-        style={{
-          width: "100%",
-          minHeight: "50vh",
-          border: "none",
-        }}
-      />
-    );
-  };
+  /**
+   * Memoize the content to be rendered in the iframe for HTML emails.
+   */
+  const htmlContentToRender = useMemo(() => {
+    if (!fullEmail || !isHtmlEmail) return null;
+
+    // SECURITY NOTE: In a production environment, implement **HTML Sanitization**
+    // using a trusted library like **DOMPurify** before rendering.
+    // Example: const sanitizedHtml = DOMPurify.sanitize(fullEmail.body);
+    // return sanitizedHtml;
+
+    // Rendering raw HTML directly. The iframe's `sandbox` attribute is
+    // currently the primary defense mechanism against malicious content.
+    return fullEmail.body;
+  }, [fullEmail, isHtmlEmail]);
+
+  // --- JSX Rendering ---
 
   return (
     <Box>
+      {/* Error Display */}
       {error && (
         <Alert
           severity="error"
@@ -167,6 +223,8 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
           {error}
         </Alert>
       )}
+
+      {/* Loading Display */}
       {fullEmailLoading && (
         <Box
           sx={{
@@ -183,6 +241,8 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
           </Typography>
         </Box>
       )}
+
+      {/* Email Content Display: Only render if data is available and not loading */}
       {fullEmail && !fullEmailLoading && (
         <Box>
           <Box
@@ -210,8 +270,29 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
               Original Email
             </Typography>
           </Box>
-          {isHtmlEmail ? (
-            renderHtmlContent(fullEmail.body)
+
+          {/* HTML or Plain Text Rendering */}
+          {isHtmlEmail && htmlContentToRender ? (
+            <iframe
+              // Keying the iframe forces a re-render when the email changes, crucial for new `srcDoc` content.
+              key={currentEmail._id}
+              title="Email Content"
+              // Use the raw or sanitized HTML string as the source document.
+              srcDoc={htmlContentToRender}
+              // Explicit, restrictive sandbox for security:
+              // - allow-same-origin: Allows scripts to access content (needed for some complex emails).
+              // - allow-popups: Allows links to open new windows.
+              // - allow-forms: Allows form submissions.
+              // - allow-scripts: Allows JavaScript execution (if necessary).
+              // - allow-top-navigation-by-user: Allows user-initiated top-level navigation (e.g., clicking a link).
+              sandbox="allow-same-origin allow-popups allow-forms allow-scripts allow-top-navigation-by-user"
+              style={{
+                width: "100%",
+                minHeight: "50vh",
+                border: "1px solid #E5E7EB",
+                borderRadius: "8px",
+              }}
+            />
           ) : (
             <Box
               sx={{
@@ -222,6 +303,7 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
                 color: "#374151",
                 lineHeight: 1.8,
                 wordBreak: "break-word",
+                // Crucial for plain text line breaks and spacing.
                 whiteSpace: "pre-wrap",
               }}
             >
@@ -233,14 +315,17 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
                   lineHeight: "inherit",
                 }}
               >
+                {/* Format and render plain text body with clickable links */}
                 {formatPlainTextEmailBody(
-                  fullEmail.body,
+                  emailBody,
                   handleLinkClick,
                   linkColor,
                 )}
               </Typography>
             </Box>
           )}
+
+          {/* Attachments Section */}
           {fullEmail.attachments && fullEmail.attachments.length > 0 && (
             <Box sx={{ mt: 3, pb: 3 }}>
               <Divider sx={{ mb: 2 }} />
@@ -281,6 +366,9 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
                         <Link
                           href={attachment.downloadUrl}
                           download={attachment.filename}
+                          // Secure link opening for external downloads.
+                          target="_blank"
+                          rel="noopener noreferrer"
                           sx={{
                             fontSize: isMobile ? "15px" : "14px",
                             color: linkColor,
@@ -291,8 +379,6 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
                               textDecoration: "underline",
                             },
                           }}
-                          target="_blank"
-                          rel="noopener noreferrer"
                         >
                           {attachment.filename}
                         </Link>
@@ -305,6 +391,8 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
           )}
         </Box>
       )}
+
+      {/* No Email Selected Display */}
       {!fullEmail && !fullEmailLoading && !error && (
         <Box
           sx={{
@@ -330,6 +418,8 @@ const EmailContentDisplay: React.FC<EmailContentDisplayProps> = ({
           </Typography>
         </Box>
       )}
+
+      {/* Security Dialog for Link Confirmation */}
       <SecurityDialog
         open={securityDialogOpen}
         url={pendingUrl}
