@@ -184,6 +184,7 @@ function Dashboard() {
     [accessToken, getEmails, termsAccepted],
   );
 
+  // Function to check queue status and update persistent indicator
   // 1. useEffect for fetching user data and continuous terms status check
   useEffect(() => {
     fetchUserDataAndVerifyEmail();
@@ -308,6 +309,7 @@ function Dashboard() {
         progress={loadingState.progress}
         showProgress={loadingState.showProgress}
         queueStats={loadingState.queueStats}
+        enableQueueMonitoring={termsAccepted === true}
       />
     </Box>
   );
