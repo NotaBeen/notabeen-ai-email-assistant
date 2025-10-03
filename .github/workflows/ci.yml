@@ -41,6 +41,7 @@ jobs:
         env:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MONGO_CLIENT: ${{ secrets.MONGO_CLIENT }}
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
