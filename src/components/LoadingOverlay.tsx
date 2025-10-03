@@ -186,7 +186,10 @@ function LoadingOverlay({
 
     fetchQueueStatus();
     queuePollingIntervalRef.current = setInterval(() => {
-      fetchQueueStatus();
+      // Only fetch if there are pending or processing jobs
+      if (queueSnapshot.pending > 0 || queueSnapshot.processing > 0 || queueSnapshot.isActive) {
+        fetchQueueStatus();
+      }
     }, pollIntervalMs);
 
     return () => {
@@ -196,7 +199,7 @@ function LoadingOverlay({
       }
       clearHideTimeout();
     };
-  }, [enableQueueMonitoring, fetchQueueStatus, pollIntervalMs, clearHideTimeout]);
+  }, [enableQueueMonitoring, fetchQueueStatus, pollIntervalMs, clearHideTimeout, queueSnapshot.pending, queueSnapshot.processing, queueSnapshot.isActive]);
 
   useEffect(() => {
     if (queueStats) {
@@ -377,7 +380,7 @@ const PersistentQueueIndicator = memo(function PersistentQueueIndicatorMemo(prop
             </Grow>
           ) : (
             <Fade in={persistentState.isMinimized} timeout={{ enter: 300, exit: 200 }}>
-              <Tooltip title={`${effectiveQueueStats?.total ?? 0} emails being processed`} placement="left">
+              <Tooltip title={`${effectiveQueueStats?.pending ?? 0} emails remaining to be processed`} placement="left">
                 <Fab
                   size="medium"
                   color="primary"
@@ -414,7 +417,7 @@ const PersistentQueueIndicator = memo(function PersistentQueueIndicatorMemo(prop
                         transition: 'all 0.2s ease-in-out'
                       }}
                     >
-                      {effectiveQueueStats?.total ?? 0}
+                      {effectiveQueueStats?.pending ?? 0}
                     </Typography>
                   </Box>
                 </Fab>
