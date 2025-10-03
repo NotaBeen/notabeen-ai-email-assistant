@@ -15,7 +15,8 @@ import {
   Tooltip,
   Fab,
   Fade,
-  Grow
+  Grow,
+  Theme
 } from "@mui/material";
 import {
   Close as CloseIcon,
@@ -266,7 +267,7 @@ interface PersistentQueueIndicatorProps {
   processedCount: number;
   handleToggleMinimize: () => void;
   handleClosePersistent: () => void;
-  theme: any;
+  theme: Theme;
 }
 
 const PersistentQueueIndicator = memo(function PersistentQueueIndicatorMemo(props: PersistentQueueIndicatorProps) {
