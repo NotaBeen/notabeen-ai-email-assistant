@@ -106,7 +106,8 @@ function parseExtractedEntities(
     try {
       const cleaned = cleanJsonString(rawJsonString);
       return JSON.parse(cleaned) as PrecisResult["extractedEntities"];
-    } catch (error) {
+    } catch (error: unknown) {
+      logger.info((error as Error).message ? (error as Error).message : '')
       logger.warn(`Failed to parse cleaned JSON for email ${emailId}. Falling back to regex.`);
       // 3. Final fallback: try to extract basic info with regex
       return extractEntitiesWithRegex(emailId, rawJsonString);
