@@ -7,13 +7,18 @@ const customJestConfig = {
   testEnvironment: "node",
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   moduleDirectories: ["node_modules", "<rootDir>/"],
+  
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    
+    "^@auth/mongodb-adapter$": "identity-obj-proxy",
   },
+
   transformIgnorePatterns: [
-    "/node_modules/(?!(?:@auth0/nextjs-auth0|@auth0)/)", // ✅ allow transpile for these
+    "/node_modules/(?!(?:next-auth|@next-auth)/)", 
   ],
+  
   transform: {
     "^.+\\.(js|jsx|ts|tsx)$": "babel-jest",
   },

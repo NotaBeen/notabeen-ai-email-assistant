@@ -1,173 +1,332 @@
-// src/app/api/user/export/__tests__/route.test.ts
+import { GET } from "../route";
+import { MongoClient, ObjectId, Collection, Db } from "mongodb";
+import { auth } from "@/auth"; // Mocked dependency: NextAuth session
+import crypto from "crypto"; // Mocked dependency: Node's built-in crypto module
+// NOTE: NextResponse is no longer imported here as it's only used inside the mocked jest.mock block.
 
-import { GET } from "../route"; // Import GET here for all tests except the env var test
-import { MongoClient, ObjectId } from "mongodb";
-import crypto from "crypto";
+// --- Mock External Dependencies ---
 
-// --- MOCKING DEPENDENCIES ---
-
-// 1. Mock your local auth0 wrapper (NOT the ESM library directly)
-jest.mock("@/lib/auth0", () => ({
-  auth0: {
-    getSession: jest.fn(),
-  },
-}));
-import { auth0 } from "@/lib/auth0";
-const mockGetSession = auth0.getSession as jest.Mock;
-
-// 2. Mock the mongodb module
-jest.mock("mongodb");
-const mockFindOne = jest.fn();
-const mockClose = jest.fn();
-const mockDb = { collection: () => ({ findOne: mockFindOne }) };
-const mockConnect = jest
-  .fn()
-  .mockResolvedValue({ db: () => mockDb, close: mockClose });
-(MongoClient as unknown as jest.Mock).mockImplementation(() => ({
-  connect: mockConnect,
-  db: () => mockDb,
-  close: mockClose,
+// 1. Mock Next.js Server Response utility
+// Provides a mock for NextResponse.json for testing API route responses.
+jest.mock("next/server", () => ({
+  NextResponse: {
+    // Note: We intentionally use 'NextResponse' inside this mock but don't export it
+    json: jest.fn((body, init) => ({
+      status: init?.status || 200,
+      json: () => Promise.resolve(body),
+    })),
+  },
 }));
 
-// 3. Mock crypto
-jest.mock("crypto");
-const mockDecipherUpdate = jest.fn();
-const mockDecipherFinal = jest.fn();
-(crypto.createDecipheriv as jest.Mock).mockImplementation(() => ({
-  setAuthTag: jest.fn(),
-  update: mockDecipherUpdate,
-  final: mockDecipherFinal,
+// 2. Mock the NextAuth server-side session function
+jest.mock("@/auth", () => ({
+  auth: jest.fn(),
 }));
 
-// --- TEST SUITE SETUP ---
-const originalEnv = process.env;
-const MOCK_USER_SUB = "auth0|12345";
-const MOCK_ENCRYPTED_EMAIL = "encrypted_email_hex";
-const MOCK_EMAIL_AUTH_TAG = "auth_tag_hex";
-const MOCK_DECRYPTED_EMAIL = "testuser@example.com";
-const MOCK_ENCRYPTED_NAME = "encrypted_name_hex";
-const MOCK_NAME_AUTH_TAG = "name_auth_tag_hex";
-const MOCK_DECRYPTED_NAME = "Test User";
+// 3. Mock the MongoDB Client and related types
+// Setup mock objects for the MongoDB connection flow (Collection, Db, Client).
+const mockUserCollection = {
+  findOne: jest.fn(),
+} as unknown as Collection;
 
-describe("GET /api/user/export", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
-    process.env = {
-      ...originalEnv,
-      MONGODB_URI: "mongodb://localhost:27017/test",
-      ENCRYPTION_KEY: "01234567890123456789012345678901",
-      ENCRYPTION_IV: "abcdefghijkl",
-      MONGO_CLIENT: "test",
-    };
-  });
+const mockDb = {
+  collection: jest.fn(() => mockUserCollection),
+} as unknown as Db;
 
-  afterEach(() => {
-    process.env = originalEnv;
-  });
+const mockClient = {
+  connect: jest.fn(),
+  db: jest.fn(() => mockDb),
+  close: jest.fn(),
+} as unknown as MongoClient;
 
-  it("should return 401 if no user session exists", async () => {
-    mockGetSession.mockResolvedValueOnce(null);
+// Mock the MongoClient constructor to return our mock client instance.
+jest.mock("mongodb", () => ({
+  MongoClient: jest.fn(() => mockClient),
+  // Simple mock for ObjectId conversion used in MongoDB queries.
+  ObjectId: jest.fn((id: string) => ({
+    toString: () => id,
+    toHexString: () => id,
+  })),
+}));
 
-    const response = await GET();
+// 4. Mock the crypto module's decryption functionality
+// Mocks the decryption stream to return predictable "decryptedValue" strings.
+// NOTE: 'mockDecrypt' removed as it was unused (L53)
+jest.mock("crypto", () => ({
+  createDecipheriv: jest.fn(() => ({
+    setAuthTag: jest.fn(),
+    // Mocks the decryption process result in two parts
+    update: jest.fn(() => "decrypted"),
+    final: jest.fn(() => "Value"), // Concatenates with update result to form "decryptedValue"
+  })),
+}));
 
-    expect(response.status).toBe(401);
-    const body = await response.json();
-    expect(body.message).toBe("Unauthorized");
-    expect(mockFindOne).not.toHaveBeenCalled();
-  });
+// --- Test Setup Constants and Helper Function ---
 
-  it("should return 401 if session exists but user.sub is missing", async () => {
-    mockGetSession.mockResolvedValueOnce({ user: {} });
+// Constants matching the expected environment variables for the route.
+const MONGODB_URI = "mongodb://mock-uri";
+const ENCRYPTION_KEY = "12345678901234567890123456789012"; // 32 chars for AES-256-GCM
+const ENCRYPTION_IV = "123456789012"; // 12 chars for GCM
+const COLLECTION_NAME = "test-db-name";
 
-    const response = await GET();
+/**
+ * Sets up environment variables, NextAuth session, and the MongoDB findOne mock.
+ * @param envVars Mock environment variables.
+ * @param session Mock NextAuth session object.
+ * @param userDoc The user document to be returned by the database.
+ */
+// FIX: Replaced 'any' with specific types or 'unknown' (L84, L85)
+const setupMocks = (
+  envVars: {
+    MONGODB_URI: string;
+    ENCRYPTION_KEY: string;
+    ENCRYPTION_IV: string;
+    MONGO_CLIENT: string;
+  },
+  session: { user?: { id?: string } } | null, // Specific session structure
+  userDoc: Record<string, unknown> | null,    // User document type
+) => {
+  // Set environment variables for the route handler
+  process.env.MONGODB_URI = envVars.MONGODB_URI;
+  process.env.ENCRYPTION_KEY = envVars.ENCRYPTION_KEY;
+  process.env.ENCRYPTION_IV = envVars.ENCRYPTION_IV;
+  process.env.MONGO_CLIENT = envVars.MONGO_CLIENT;
 
-    expect(response.status).toBe(401);
-    const body = await response.json();
-    expect(body.message).toBe("Unauthorized");
-    expect(mockFindOne).not.toHaveBeenCalled();
-  });
+  // Mock session return value
+  (auth as jest.Mock).mockResolvedValue(session);
 
-  it("should return 404 if user is not found in the database", async () => {
-    mockGetSession.mockResolvedValueOnce({ user: { sub: MOCK_USER_SUB } });
-    mockFindOne.mockResolvedValueOnce(null);
+  // Mock database findOne result for the user's document
+  if (userDoc !== undefined) {
+    (mockUserCollection.findOne as jest.Mock).mockResolvedValue(userDoc);
+  }
+};
 
-    const response = await GET();
+describe("GET /api/user/export - GDPR Data Export", () => {
+  // Spy on console.error to prevent logs from environment/DB error tests polluting the output.
+  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body.message).toBe("User not found");
-    expect(mockFindOne).toHaveBeenCalledWith({ sub: MOCK_USER_SUB });
-  });
+  const nextAuthUserId = "test-user-id-123";
+  const mockSession = { user: { id: nextAuthUserId } };
+  const mockObjectId = new ObjectId("507f1f77bcf86cd799439011");
 
-  it("should return 500 if an unexpected error occurs during database connection", async () => {
-    const consoleErrorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    mockGetSession.mockResolvedValueOnce({ user: { sub: MOCK_USER_SUB } });
-    mockConnect.mockRejectedValueOnce(new Error("Database connection failed"));
+  // Full mock document representing a user record from the database.
+  const fullMockUserDocument = {
+    _id: mockObjectId,
+    nextAuthUserId: nextAuthUserId,
+    email: "encrypted_email_data",
+    emailAuthTag: "email_tag",
+    name: "encrypted_name_data",
+    nameAuthTag: "name_tag",
+    settings: {
+      theme: "dark",
+      language: "en",
+      notifications_enabled: true,
+    },
+    total_emails_analyzed: 100,
+  };
 
-    const response = await GET();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Re-configure the crypto mock implementation before each test
+    const mockDecipher = {
+      setAuthTag: jest.fn(),
+      // FIX: Removed unused args '_encoding' and '_outputEncoding' to silence ESLint warnings.
+      update: jest.fn((data) => { 
+        if (data === "encrypted_email_data") return "decrypted";
+        if (data === "encrypted_name_data") return "decrypted";
+        return "";
+      }),
+      // FIX: Removed unused arg '_encoding' to silence ESLint warning.
+      final: jest.fn(() => { 
+        return "Value";
+      }),
+    };
+    (crypto.createDecipheriv as jest.Mock).mockReturnValue(mockDecipher);
 
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.message).toBe("Internal server error");
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "❌ Error in GET /api/user/export:",
-      expect.any(Error),
-    );
-    consoleErrorSpy.mockRestore();
-  });
+    // Clear the console spy for accurate per-test checking if needed
+    consoleErrorSpy.mockClear();
+  });
 
-  it("should return 200 with decrypted user data on success", async () => {
-    mockGetSession.mockResolvedValueOnce({ user: { sub: MOCK_USER_SUB } });
+  // Restore the original console.error function after all tests have run.
+  afterAll(() => {
+    consoleErrorSpy.mockRestore();
+  });
 
-    mockDecipherUpdate.mockReturnValueOnce(MOCK_DECRYPTED_EMAIL);
-    mockDecipherUpdate.mockReturnValueOnce(MOCK_DECRYPTED_NAME);
-    mockDecipherFinal.mockReturnValueOnce("");
-    mockDecipherFinal.mockReturnValueOnce("");
+  // --- 1. Configuration Validation Tests ---
 
-    const mockUserDocument = {
-      _id: new ObjectId(),
-      sub: MOCK_USER_SUB,
-      email: MOCK_ENCRYPTED_EMAIL,
-      emailAuthTag: MOCK_EMAIL_AUTH_TAG,
-      name: MOCK_ENCRYPTED_NAME,
-      nameAuthTag: MOCK_NAME_AUTH_TAG,
-      total_emails_analyzed: 100,
-      created_at: new Date(),
-    };
-    mockFindOne.mockResolvedValueOnce(mockUserDocument);
+  it("should return 500 if MONGODB_URI is missing", async () => {
+    setupMocks(
+      {
+        MONGODB_URI: "", // Test missing URI
+        ENCRYPTION_KEY,
+        ENCRYPTION_IV,
+        MONGO_CLIENT: COLLECTION_NAME,
+      },
+      mockSession,
+      fullMockUserDocument,
+    );
 
-    const response = await GET();
-    const body = await response.json();
+    const response = await GET();
 
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual(
-      expect.objectContaining({
-        sub: MOCK_USER_SUB,
-        email: MOCK_DECRYPTED_EMAIL,
-        name: MOCK_DECRYPTED_NAME,
-        total_emails_analyzed: 100,
-      }),
-    );
-    expect(mockFindOne).toHaveBeenCalledWith({ sub: MOCK_USER_SUB });
-  });
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.message).toContain("Server configuration error");
+  });
 
-  it("should return 500 if required environment variables are not defined", async () => {
-    // Clear all environment variables for this test, but keep NODE_ENV as required
-    process.env = { NODE_ENV: "test" } as NodeJS.ProcessEnv;
+  it("should return 500 if ENCRYPTION_KEY is the wrong length", async () => {
+    setupMocks(
+      {
+        MONGODB_URI,
+        ENCRYPTION_KEY: "too_short", // Test incorrect key length
+        ENCRYPTION_IV,
+        MONGO_CLIENT: COLLECTION_NAME,
+      },
+      mockSession,
+      fullMockUserDocument,
+    );
 
-    // Reset modules to pick up cleared env
-    jest.resetModules();
-    const { GET: GET_WITH_EMPTY_ENV } = await import("../route");
+    const response = await GET();
 
-    const response = await GET_WITH_EMPTY_ENV();
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.message).toContain("Invalid encryption key or IV length");
+  });
 
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.message).toBe(
-      "Server configuration error: Required environment variables are not defined",
-    );
-  });
+  // --- 2. Session and Authorization Tests ---
+
+  it("should return 401 if the session is null (unauthorized)", async () => {
+    setupMocks(
+      { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },
+      null, // Test null session
+      fullMockUserDocument,
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.message).toBe("Unauthorized");
+    expect(mockClient.connect).not.toHaveBeenCalled(); // Should fail before DB connection attempt
+  });
+
+  it("should return 401 if session is present but user ID is missing", async () => {
+    setupMocks(
+      { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },
+      { user: {} }, // Test session with missing user.id
+      fullMockUserDocument,
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.message).toBe("Unauthorized");
+  });
+
+  // --- 3. Database Fetch Tests ---
+
+  it("should return 404 if the user is not found in the database", async () => {
+    setupMocks(
+      { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },
+      mockSession,
+      null, // Test user not found
+    );
+
+    const response = await GET();
+
+    expect(mockClient.connect).toHaveBeenCalled();
+    expect(mockUserCollection.findOne).toHaveBeenCalledWith({
+      nextAuthUserId,
+    });
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.message).toBe("User not found");
+    expect(mockClient.close).toHaveBeenCalled();
+  });
+
+  // --- 4. Success and Decryption Tests ---
+
+  it("should return 200 with decrypted data and GDPR info on success", async () => {
+    setupMocks(
+      { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },
+      mockSession,
+      fullMockUserDocument, // Test successful fetch and decryption
+    );
+
+    const response = await GET();
+
+    expect(mockClient.connect).toHaveBeenCalled();
+    expect(crypto.createDecipheriv).toHaveBeenCalledTimes(2); // Should decrypt email and name
+
+    // Verify correct decryption algorithm usage
+    const emailDecipherCall = (crypto.createDecipheriv as jest.Mock).mock.calls[0][0];
+    expect(emailDecipherCall).toBe("aes-256-gcm");
+
+    // Check successful response status and body content
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    // Check decrypted data (simulated result is "decryptedValue")
+    expect(body.data.email).toBe("decryptedValue");
+    expect(body.data.name).toBe("decryptedValue");
+    expect(body.data).not.toHaveProperty("emailAuthTag"); // Encrypted fields removed
+
+    // Check GDPR structure is included
+    expect(body).toHaveProperty("gdpr_compliance_information");
+
+    expect(mockClient.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("should return 200 and not decrypt fields if they are missing (partially filled document)", async () => {
+    const partialUserDocument = {
+      _id: mockObjectId,
+      nextAuthUserId: nextAuthUserId,
+      total_emails_analyzed: 5,
+      // email and name fields intentionally missing
+    };
+
+    setupMocks(
+      { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },
+      mockSession,
+      partialUserDocument, // Test partial document
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    // Decryption functions should not have been called for missing fields
+    expect(crypto.createDecipheriv).not.toHaveBeenCalled();
+
+    // Data should contain non-encrypted fields but not undefined sensitive fields
+    expect(body.data.email).toBeUndefined();
+    expect(body.data.total_emails_analyzed).toBe(5);
+
+    expect(mockClient.close).toHaveBeenCalledTimes(1);
+  });
+
+  // --- 5. Error Handling Tests ---
+
+  it("should return 500 on a generic database connection error", async () => {
+    setupMocks(
+      { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },
+      mockSession,
+      fullMockUserDocument,
+    );
+
+    // Force an error during the connection phase
+    (mockClient.connect as jest.Mock).mockRejectedValue(
+      new Error("Forced DB connection failure"),
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.message).toBe("Internal server error");
+    expect(body.error).toContain("Forced DB connection failure");
+    // Ensure client.close is called, even on connection failure
+    expect(mockClient.close).toHaveBeenCalledTimes(1);
+  });
 });
