@@ -49,6 +49,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NEXTAUTH_URL: http://localhost:3000
 
-      # # Step 5: Runs the test suite  
-      # - name: Run tests
-      #   run: npm test
+      # Step 5: Runs the test suite  
+      - name: Run tests
+        run: npm test
