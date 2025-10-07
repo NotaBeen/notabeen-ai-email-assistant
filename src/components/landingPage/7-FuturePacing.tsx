@@ -16,7 +16,7 @@ function FuturePacing() {
   return (
     <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.default" }}>
       <Container maxWidth="lg">
-        {/* --- Section Header --- */}
+        {/* --- Section Header - UPDATED --- */}
         <Box sx={{ textAlign: "center", mb: { xs: 6, md: 10 } }}>
           <Typography
             variant="h4"
@@ -28,7 +28,7 @@ function FuturePacing() {
               fontSize: { xs: "1.75rem", md: "2.5rem" },
             }}
           >
-            Imagine Your Inbox, Transformed.
+            A Future Where Your Focus Pays Dividends.
           </Typography>
           <Typography
             variant="h6"
@@ -40,8 +40,7 @@ function FuturePacing() {
               fontSize: { xs: "1rem", md: "1.25rem" },
             }}
           >
-            This is not just a vision. This is the future of your professional
-            life, and it is powered by NotaBeen.
+            This isn&#39;t just a vision. This is the <strong>auditable ROI</strong> you can expect from running your professional life on NotaBeen.
           </Typography>
         </Box>
 
@@ -55,7 +54,7 @@ function FuturePacing() {
             alignItems: "stretch",
           }}
         >
-          {/* Card 1: Emotional Benefit (Calmness) */}
+          {/* Card 1: Emotional Benefit (Calmness -> Auditable Calm/Risk Mitigation) - UPDATED */}
           <Paper
             elevation={3}
             sx={{
@@ -98,19 +97,18 @@ function FuturePacing() {
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              No More Inbox Anxiety.
+              Experience Auditable Calm
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
               sx={{ fontSize: { xs: "0.95rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              You will feel calm, in control, and free from the stress of a
-              cluttered inbox, knowing the AI is filtering the noise for you.
+              You&#39;ll feel <strong>calm and confident</strong>, knowing our intelligent prioritization system provides an auditable, enterprise-grade defense against missing critical, high-stakes client communication, contracts, or invoices.
             </Typography>
           </Paper>
 
-          {/* Card 2: Productivity Benefit (Time) */}
+          {/* Card 2: Productivity Benefit (Time -> ROI/Time-as-Revenue) - UPDATED */}
           <Paper
             elevation={3}
             sx={{
@@ -151,20 +149,18 @@ function FuturePacing() {
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              No More Wasted Hours.
+              Optimize Time as Revenue
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
               sx={{ fontSize: { xs: "0.95rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              You will spend more time on meaningful work and less time sifting
-              through junk mail, thanks to automated summaries and
-              prioritization.
+              You&#39;ll shift your focus entirely to billable, high-impact work. Every <strong>AI Action</strong> (summaries, categorization, drafting) saves you precious minutes, translating into a clear and measurable <strong>professional ROI</strong>.
             </Typography>
           </Paper>
 
-          {/* Card 3: Performance Benefit (Focus) */}
+          {/* Card 3: Performance Benefit (Focus -> High-Value Focus) - UPDATED */}
           <Paper
             elevation={3}
             sx={{
@@ -205,15 +201,14 @@ function FuturePacing() {
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              No More Missed Opportunities.
+              Unlock High-Value Focus
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
               sx={{ fontSize: { xs: "0.95rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              Your most important and actionable emails will be at the top of
-              your dashboard, ensuring you never drop the ball on a key message.
+              The system&#39;s entire purpose is to maintain your flow state. Stop chasing the noise and spend your <strong>mental energy</strong> executing the strategic, revenue-generating tasks that truly matter to your business.
             </Typography>
           </Paper>
         </Box>

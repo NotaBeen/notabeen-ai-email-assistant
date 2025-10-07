@@ -8,15 +8,14 @@ import ShieldIcon from "@mui/icons-material/Shield";
 
 /**
  * The SolutionIntroduction section introduces the core value propositions
- * of NotaBeen using three distinct feature cards.
- * It highlights prioritization, anxiety reduction, and the privacy/open-source aspect.
+ * of NotaBeen using three distinct feature cards, updated for the Open Core MVPI strategy.
  * @returns {JSX.Element} The SolutionIntroduction component.
  */
 export default function SolutionIntroduction() {
   return (
     <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.default" }}>
       <Container maxWidth="lg">
-        {/* Section Headline */}
+        {/* Section Headline - UPDATED */}
         <Typography
           variant="h4"
           component="h2"
@@ -28,7 +27,7 @@ export default function SolutionIntroduction() {
             color: "text.primary",
           }}
         >
-          Meet NotaBeen: Your Personal Inbox Assistant
+          NotaBeen Professional: Your Engine for Intelligent Focus
         </Typography>
 
         {/* Flexbox Container for Cards */}
@@ -41,7 +40,7 @@ export default function SolutionIntroduction() {
             alignItems: "stretch",
           }}
         >
-          {/* Card 1: Prioritization */}
+          {/* Card 1: Intelligent Prioritization / Risk Mitigation - UPDATED */}
           <Paper
             elevation={3} // Slightly higher elevation for emphasis
             sx={{
@@ -67,6 +66,7 @@ export default function SolutionIntroduction() {
                 justifyContent: "center",
               }}
             >
+              {/* Using AutoStoriesIcon to represent reading/summary/prioritization */}
               <AutoStoriesIcon sx={{ fontSize: { xs: 32, md: 40 } }} />
             </Box>
             <Typography
@@ -78,20 +78,18 @@ export default function SolutionIntroduction() {
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              Stop Sifting, Start Reading
+              Intelligent Prioritization: Risk Mitigation
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
               sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              NotaBeen AI automatically sorts and prioritizes your emails,
-              cutting through the noise so you only see what is important and
-              urgent.
+              Our solution automatically detect and surface high-stakes emails, invoices, contract deadlines, and client requests. Ensuring you <strong>never drop the ball</strong> on revenue-driving or high-risk communication.
             </Typography>
           </Paper>
 
-          {/* Card 2: Anxiety Reduction */}
+          {/* Card 2: High-Value AI Actions (Monetization Metric) - UPDATED */}
           <Paper
             elevation={3}
             sx={{
@@ -117,6 +115,7 @@ export default function SolutionIntroduction() {
                 justifyContent: "center",
               }}
             >
+              {/* Using SentimentSatisfiedAltIcon to represent productivity/satisfaction */}
               <SentimentSatisfiedAltIcon
                 sx={{ fontSize: { xs: 32, md: 40 } }}
               />
@@ -130,20 +129,18 @@ export default function SolutionIntroduction() {
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              Conquer Inbox Anxiety
+              High-Value AI Actions & ROI
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
               sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              A clear, organized dashboard replaces the endless scroll of Gmail,
-              allowing you to finally feel in control and stress-free about your
-              communication.
+              Every Professional account includes <strong>unlimited AI Actions</strong> (summaries, categorization, sentiment analysis) per month. These are the tools that save you hours, driving a clear and measurable return on your investment.
             </Typography>
           </Paper>
 
-          {/* Card 3: Privacy and Open Source */}
+          {/* Card 3: Privacy and Open Source - UPDATED */}
           <Paper
             elevation={3}
             sx={{
@@ -180,16 +177,14 @@ export default function SolutionIntroduction() {
                 fontSize: { xs: "1.1rem", md: "1.25rem" },
               }}
             >
-              Open Source & Private
+              Transparency & Trust: Open Core
             </Typography>
             <Typography
               variant="body1"
               color="text.secondary"
               sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, lineHeight: 1.6 }}
             >
-              Our privacy-first design means your data is secure. Choose the
-              self-hosted open-source option for complete control or use our
-              managed service.
+              Unlike proprietary AI &quot;black boxes,&quot; our Open Core model lets you audit our codebase. Choose the <strong>managed service</strong> for convenience, or the <strong>self-hosted Core</strong> for 100% data sovereignty.
             </Typography>
           </Paper>
         </Box>

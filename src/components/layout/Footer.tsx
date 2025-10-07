@@ -15,11 +15,42 @@ import Icon from "../ui/Icon";
 /**
  * The Footer component provides site navigation, branding, and legal links.
  * It is structured into three main parts: Logo/Description, Navigation Links,
- * and Copyright/Social Media.
+ * and Copyright/Social Media. The messaging emphasizes the Open Core model.
  * @returns {JSX.Element} The Footer component.
  */
 export default function Footer() {
   const year = new Date().getFullYear();
+
+  // Create new, Open Core-aligned links to override the imported ones
+  const updated_footer_links = {
+    // Note: The structure of footer_links.routes is expected to be { title: string, links: { title: string, url: string }[] }[]
+    routes: [
+      {
+        title: "Professional (ROI)",
+        links: [
+          { title: "NotaBeen Professional", url: "/pricing" }
+        ],
+      },
+      {
+        title: "Open Core (Trust)",
+        links: [
+          { title: "View on GitHub", url: "https://github.com/NotaBeen/notabeen-ai-email-assistant" },
+          { title: "Open Core License (MIT)", url: "https://github.com/NotaBeen/notabeen-ai-email-assistant/blob/main/LICENSE" }, // Link to MIT license
+        ],
+      },
+      {
+        title: "Company & Legal",
+        links: [
+          { title: "About Us", url: "/about" },
+          { title: "Privacy Policy", url: "/privacy-policy" },
+          { title: "Cookie Policy", url: "/cookie-policy" },
+        ],
+      },
+    ],
+    // Assuming social_media data is correct in imported constant.
+    social_media: footer_links.social_media,
+  };
+
 
   return (
     <Box
@@ -62,7 +93,7 @@ export default function Footer() {
                 NotaBeen
               </Typography>
             </Box>
-            {/* Description */}
+            {/* Description - UPDATED */}
             <Typography
               variant="body2"
               sx={{
@@ -72,12 +103,11 @@ export default function Footer() {
                 mt: 2,
               }}
             >
-              Secure, AI-powered email prioritization to cut through inbox chaos
-              and boost professional productivity.
+              The <strong>Open Core</strong> solution for auditable AI and data sovereignty. Choose <strong>Professional</strong> for guaranteed ROI and managed high-value features.
             </Typography>
           </Box>
 
-          {/* B. Navigation Links Section */}
+          {/* B. Navigation Links Section - USING UPDATED LINKS */}
           <Box
             sx={{
               display: "grid",
@@ -92,7 +122,7 @@ export default function Footer() {
               flex: 1,
             }}
           >
-            {footer_links.routes.map((route) => (
+            {updated_footer_links.routes.map((route) => (
               <Box key={route.title}>
                 {/* Link Group Title */}
                 <Typography
@@ -169,11 +199,11 @@ export default function Footer() {
               textAlign: { xs: "center", sm: "left" },
             }}
           >
-            © {year} NotaBeen. All rights reserved. Built with privacy in mind.
+            © {year} NotaBeen. All rights reserved. <strong>Built on an MIT-licensed Open Core.</strong>
           </Typography>
           {/* Social Media Icons */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {footer_links.social_media.map((social) => (
+            {updated_footer_links.social_media.map((social) => (
               <Link
                 href={social.url}
                 target="_blank"

@@ -15,31 +15,31 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn"; // Added LinkedIn Icon
 
 /**
  * The FAQ component displays common questions and answers about NotaBeen,
- * addressing key concerns like privacy, value proposition, and pricing.
- * It uses Material UI Accordions for a clean, interactive design.
+ * addressing key concerns like privacy, value proposition, and pricing, updated
+ * to reflect the Open Core MVPI strategy.
  * @returns {JSX.Element} The FAQ component.
  */
 export default function FAQ() {
   const faqs = [
     {
-      question: "How does NotaBeen handle my professional email data?",
+      question: "What is the difference between NotaBeen Core (Free) and Professional (Paid)?",
       answer:
-        "NotaBeen offers two options. The open-source version is fully self-hosted, meaning your email data stays on your own private server and never touches our systems. For our hosted version, your data is processed in a secure, private cloud environment that adheres to strict privacy standards and is never sold or used for AI training.",
+        "NotaBeen Core is the free, MIT-licensed, self-hostable open-source engine, perfect for users who prioritize absolute data sovereignty. It handles basic categorization and a clean dashboard. NotaBeen Professional is our managed SaaS offering. It includes advanced Intelligent Prioritization (Risk Mitigation), automated reply drafting, and a generous allowance of AI Actions (our monetization metric, like summaries and analysis) without the burden of self-hosting.",
     },
     {
-      question: "How does the AI assistant actually save me time?",
+      question: "How does NotaBeen ensure my data privacy and security?",
       answer:
-        "NotaBeen's AI works to eliminate inbox anxiety by automatically sorting, prioritizing, and summarizing your emails. It cuts through low-value messages, ensuring that your most important communications are always easy to find, so you can spend less time sifting through clutter.",
+        "Our Open Core model is our security moat. You can audit the entire codebase (Core) to verify our data handling practices. For the Professional managed service, your data is processed in a secure, private cloud environment and is never used to train AI models or sold to third parties. You always retain control and transparency.",
     },
     {
-      question: "Is NotaBeen difficult to set up?",
+      question: "How do 'AI Actions' work, and how are they tied to my cost?",
       answer:
-        "For the self-hosted, open-source version, the process involves a quick setup on your private server, with step-by-step documentation to guide you. If you'd prefer an effortless experience, our hosted version requires no setup at all—just a simple sign-in and connection to your email.",
+        "AI Actions are our core monetization metric. They are defined as high-value, resource-intensive AI operations, such as generating an in-depth thread summary, performing sentiment analysis, or drafting an advanced reply. NotaBeen Professional includes unlimited AI Actions per month, offering a clear, measurable ROI by saving you time on high-stakes tasks.",
     },
     {
-      question: "What are the costs associated with using NotaBeen?",
+      question: "What is the pricing for NotaBeen Professional?",
       answer:
-        "The NotaBeen software is fully open-source and free to use. The only cost for the open-source version is for hosting the assistant on your private server, which is typically a minimal fee. We also offer a paid hosted version, which includes our managed cloud service for a simple, one-time fee for lifetime usage.",
+        "The NotaBeen Professional hosted service is priced at €28.99 per user, per month. You can receive a discount by choosing the annual plan. The self-hosted NotaBeen Core is free (open-source), with the only cost being your private server hosting fees.",
     },
   ];
 
@@ -144,25 +144,22 @@ export default function FAQ() {
             }}
             gutterBottom
           >
-            Still Have Questions?
+            Want to See the Code?
           </Typography>
           <Typography
             variant="body1"
             color="text.secondary"
             sx={{ fontSize: { xs: "1rem", md: "1.1rem" }, mb: 3 }}
           >
-            Join our community on LinkedIn or check out our open-source
-            repository. We are ready to help!
+            All questions about security, data handling, and the core prioritization logic can be answered by reviewing our open-source repository.
           </Typography>
           <Button
             variant="contained"
             component="a"
-            // The provided URL points to GitHub, but the text mentions LinkedIn.
-            // Keeping the GitHub link for the open-source context, but could be a LinkedIn group link too.
             href="https://github.com/NotaBeen/notabeen-ai-email-assistant"
             target="_blank"
             rel="noopener noreferrer"
-            startIcon={<LinkedInIcon />} // Using LinkedIn icon for "Community" if that's the primary channel
+            startIcon={<LinkedInIcon />} // Keeping the LinkedIn icon to represent community/professional link
             sx={{
               bgcolor: "primary.main",
               color: "primary.contrastText",
@@ -174,7 +171,7 @@ export default function FAQ() {
               "&:hover": { bgcolor: "primary.dark" },
             }}
           >
-            Join the Discussion
+            View on GitHub (Open Core)
           </Button>
         </Box>
       </Container>

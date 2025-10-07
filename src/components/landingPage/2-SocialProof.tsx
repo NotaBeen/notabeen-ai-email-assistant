@@ -20,22 +20,19 @@ export default function SocialProof() {
         {/* Top Divider for separation */}
         <Divider sx={{ my: { xs: 3, md: 4 }, borderColor: "divider" }} />
 
-        {/* Founder's Quote / Mission Statement */}
+        {/* Founder's Quote / Mission Statement - UPDATED */}
         <Typography
           variant="h4"
           component="h2"
           sx={{
             fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
-            fontWeight: 600,
             fontStyle: "italic",
             mb: { xs: 3, md: 4 },
             color: "text.primary",
             lineHeight: 1.4,
           }}
         >
-          &ldquo;I built NotaBeen because I was tired of feeling anxious about
-          my inbox. It is for every professional who wants to stop being a slave
-          to email and start focusing on the work that truly matters.&rdquo;
+          &ldquo;I built NotaBeen because the true cost of email isn&rsquo;t time, it&rsquo;s <strong>risk</strong>. It is for every professional who needs an auditable defense against missing critical client work, contracts, or invoices, and who demands a full return on their focus.&rdquo;
         </Typography>
 
         {/* Founder Attribution */}

@@ -39,7 +39,7 @@ function Hero() {
       }}
     >
       <Container maxWidth="lg">
-        {/* --- Headline --- */}
+        {/* --- Headline - UPDATED --- */}
         <Typography
           variant="h1"
           component="h1"
@@ -50,13 +50,13 @@ function Hero() {
             lineHeight: { xs: 1.1, sm: 1.05 },
           }}
         >
-          Cut Email Time in Half. <br />
+          Stop Losing Time. <br />
           <Box component="span" sx={{ color: "primary.main" }}>
-            Get Back to What Matters.
+            Start Prioritizing Revenue-Driving Work.
           </Box>
         </Typography>
 
-        {/* --- Sub-headline / Description --- */}
+        {/* --- Sub-headline / Description - UPDATED --- */}
         <Typography
           variant="h2"
           component="p"
@@ -71,12 +71,13 @@ function Hero() {
             color: "text.secondary",
           }}
         >
-          An AI assistant that sorts, summarizes, and prioritizes your
-          professional Gmail, so you can spend less time on clutter and more
-          time on high-impact work. Open-source and privacy-focused.
+          NotaBeen Professional: The <strong>Open Core AI Engine</strong> for Intelligent
+          Prioritization and Risk Mitigation. Ensure you never miss a
+          high-stakes client request or invoice, without compromising on data
+          security.
         </Typography>
 
-        {/* --- Call-to-Action Buttons --- */}
+        {/* --- Call-to-Action Buttons - UPDATED --- */}
         <Box
           sx={{
             display: "flex",
@@ -87,7 +88,7 @@ function Hero() {
             mb: 6,
           }}
         >
-          {/* 1. Primary CTA: Get Started (Managed Service) */}
+          {/* 1. Primary CTA: Start Professional (€28.99/mo) */}
           <Button
             variant="contained"
             size="large"
@@ -108,15 +109,15 @@ function Hero() {
                 `0 4px 15px ${theme.palette.primary.light}80`,
             }}
             onClick={() => {
-              handleButtonClick("hero_cta_get_started");
+              handleButtonClick("hero_cta_start_professional"); // New event name
               // Initiate Google sign-in process via NextAuth
               signIn("google", { callbackUrl: "/dashboard" });
             }}
           >
-            Get Started (Free!)
+            Start Professional (€28.99 /mo)
           </Button>
 
-          {/* 2. Secondary CTA: View on GitHub (Open Source) */}
+          {/* 2. Secondary CTA: View on GitHub (Self-Hosted) */}
           <Button
             variant="outlined"
             size="large"
@@ -137,12 +138,12 @@ function Hero() {
               borderRadius: 2,
             }}
             component={Link}
-            href="https://github.com/NotaBeen/NotaBeen" // Corrected GitHub repository name
+            href="https://github.com/NotaBeen/NotaBeen"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => handleButtonClick("hero_cta_view_github")}
           >
-            View on GitHub
+            View on GitHub (Self-Hosted)
           </Button>
         </Box>
       </Container>
