@@ -58,7 +58,7 @@ import { landing_page_navigation } from "@/lib/constants";
 /**
  * @constant {SubscriptionPlan[]}
  * @description Defines the available subscription plans. Prices are set in EUR based on a target
- * anchor price of £24.99 GBP (converted to €28.99 monthly).
+ * anchor price of €28.99 monthly.
  */
 const subscriptionPlans = [
   {
@@ -93,11 +93,11 @@ const subscriptionPlans = [
   {
     id: 2,
     tier: "NotaBeen Professional",
-    // Monthly price: £24.99 GBP anchor price -> ~€28.99 EUR
+    // Monthly price: €28.99 EUR
     price: 28.99,
     originalPrice: 28.99,
     currency: "€",
-    duration: "/month", 
+    duration: "month", 
     // UPDATED: Usage is now Unlimited to match the high-value SaaS positioning.
     usage: "1 User + Unlimited AI Actions", 
     description:
@@ -168,7 +168,7 @@ const subscriptionFeatures = [
     managedService: true,
   },
   {
-    // UPDATED: Removed the 500 consumption limit.
+    // UPDATED: Removed the 500 consumption limit and made it Unlimited.
     title: "AI Actions (LLM Calls) per Month",
     openSource: false, 
     managedService: "Unlimited", 

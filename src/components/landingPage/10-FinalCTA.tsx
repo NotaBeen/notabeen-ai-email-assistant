@@ -16,9 +16,8 @@ const handleButtonClick = (action: string) => {
 
 /**
  * The FinalCTA component serves as the conclusive call-to-action section
- * of the landing page, encouraging users to either sign up for the hosted service
- * or check out the open-source code on GitHub.
- * It uses the primary brand color for a bold, visible contrast.
+ * of the landing page, encouraging users to either sign up for the Hosted/Professional service
+ * (focused on ROI) or check out the open-source Core code on GitHub (focused on Trust).
  * @returns {JSX.Element} The FinalCTA component.
  */
 function FinalCTA() {
@@ -40,7 +39,7 @@ function FinalCTA() {
             mb: 2,
           }}
         />
-        {/* Main Headline */}
+        {/* Main Headline - UPDATED */}
         <Typography
           variant="h4"
           component="h2"
@@ -51,9 +50,9 @@ function FinalCTA() {
             color: "primary.contrastText",
           }}
         >
-          Ready to Reclaim Your Inbox?
+          Invest in Your Focus. Guarantee Your Professional ROI.
         </Typography>
-        {/* Sub-text/Value Proposition Summary */}
+        {/* Sub-text/Value Proposition Summary - UPDATED */}
         <Typography
           variant="body1"
           sx={{
@@ -65,9 +64,7 @@ function FinalCTA() {
             lineHeight: 1.6,
           }}
         >
-          Stop drowning in email and take back your time. With NotaBeen, you get
-          powerful AI to manage your inbox without ever compromising on your
-          data and privacy. Choose the control you want.
+          Stop losing billable hours to email noise. Choose <strong>NotaBeen Professional</strong> for high-value AI Actions and risk mitigation, or use the self-hosted <strong>Open Core</strong> for auditable data sovereignty.
         </Typography>
 
         {/* Buttons Container */}
@@ -81,7 +78,7 @@ function FinalCTA() {
             width: "100%",
           }}
         >
-          {/* Button 1: Hosted/Sign-In (Primary Action) */}
+          {/* Button 1: Hosted/Sign-In (Primary Action) - UPDATED TEXT */}
           <Button
             variant="contained"
             size="large"
@@ -106,10 +103,10 @@ function FinalCTA() {
               signIn("google"); // Assuming 'google' is the sign-in provider
             }}
           >
-            Start for Free (Hosted Version)
+            Start Professional (€28.99 /mo)
           </Button>
 
-          {/* Button 2: Open Source (Secondary Action) */}
+          {/* Button 2: Open Source (Secondary Action) - UPDATED TEXT */}
           <Button
             variant="outlined"
             size="large"
@@ -133,7 +130,7 @@ function FinalCTA() {
             rel="noopener noreferrer"
             onClick={() => handleButtonClick("open_source_cta_click")}
           >
-            View on GitHub (Open Source)
+            View on GitHub (Free Open Core)
           </Button>
         </Box>
       </Container>

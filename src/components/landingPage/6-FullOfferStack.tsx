@@ -8,14 +8,14 @@ import SummarizeIcon from "@mui/icons-material/Summarize"; // For Automated Summ
 
 /**
  * The FullOfferStack section provides a detailed breakdown of the three main
- * benefits or features a user receives when using NotaBeen.
+ * benefits or features a user receives when using NotaBeen Professional.
  * @returns {JSX.Element} The FullOfferStack component.
  */
 function FullOfferStack() {
   return (
     <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
       <Container maxWidth="lg">
-        {/* --- Section Header --- */}
+        {/* --- Section Header - UPDATED --- */}
         <Box sx={{ textAlign: "center", mb: { xs: 6, md: 10 } }}>
           <Typography
             variant="h4"
@@ -27,7 +27,7 @@ function FullOfferStack() {
               fontSize: { xs: "1.75rem", sm: "2rem", md: "2.5rem" },
             }}
           >
-            Reclaim Your Inbox, Redefine Your Productivity.
+            The Full Professional Stack: Focus, Mitigation, and Control.
           </Typography>
           <Typography
             variant="body1"
@@ -39,9 +39,7 @@ function FullOfferStack() {
               fontSize: { xs: "1rem", sm: "1.1rem" },
             }}
           >
-            NotaBeen delivers a complete solution for professionals who want to
-            move beyond email anxiety and get back to their real work. Here is
-            everything you get in the full stack.
+            NotaBeen Professional is engineered for the highest return on investment for high-value time. We deliver an indispensable platform built on three core, non-negotiable pillars of modern productivity.
           </Typography>
         </Box>
 
@@ -55,32 +53,25 @@ function FullOfferStack() {
             alignItems: "stretch",
           }}
         >
-          {/* 1. Intelligent Prioritization */}
+          {/* 1. Intelligent Prioritization (Focus on Risk/Financials) - UPDATED */}
           <FeatureCard
             icon={AutoFixHighIcon}
-            title="Intelligent Prioritization"
-            description="Our AI learns what is important to you, automatically surfacing
-              critical emails and archiving the rest. Never miss a key message,
-              and always focus on high-impact work."
+            title="Intelligent Risk Prioritization"
+            description="Our AI doesn't just sort, it analyzes financial risk. By surfacing contracts, key client threads, and invoices first, we ensure you never lose revenue or reputation due to a missed email."
           />
 
-          {/* 2. Complete Data Privacy */}
-          <FeatureCard
-            icon={ShieldIcon}
-            title="Complete Data Privacy"
-            description="You choose your privacy level. The self-hosted, open-source
-              version means your data never leaves your server, while our hosted
-              option provides a secure environment with enterprise-grade privacy
-              standards."
-          />
-
-          {/* 3. Automated Summaries */}
+          {/* 2. AI Action Efficiency (The Monetization Metric) - UPDATED */}
           <FeatureCard
             icon={SummarizeIcon}
-            title="Automated Summaries"
-            description="Quickly get the gist of long email threads and newsletters with
-              AI-powered summaries, saving you hours of reading time each week.
-              Understand complex topics at a glance."
+            title="High-Value AI Action Efficiency"
+            description="Every Professional account includes unlimited AI Actions per month. These are metered, high-value operations. Like full-thread summaries and automated reply drafts that directly save you billable hours."
+          />
+
+          {/* 3. Open Core Data Sovereignty (The Trust Model) - UPDATED */}
+          <FeatureCard
+            icon={ShieldIcon}
+            title="Open Core Data Sovereignty"
+            description="Trust is auditable. With our Open Core model, you get the convenience of a managed service but the security assurance of a transparent, MIT-licensed codebase. Your data remains yours, always."
           />
         </Box>
       </Container>

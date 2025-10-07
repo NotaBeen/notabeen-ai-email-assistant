@@ -6,6 +6,7 @@ import Image from "next/image";
 import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import { landing_page_navigation } from "@/lib/constants";
+import GitHubIcon from "@mui/icons-material/GitHub"; // Add GitHub icon for the button
 
 export default function AboutPage() {
   return (
@@ -24,7 +25,7 @@ export default function AboutPage() {
               fontSize: { xs: "2.5rem", md: "3rem" },
             }}
           >
-            Our Story
+            Our Story: Building Trust and Value
           </Typography>
           <Typography
             variant="h5"
@@ -33,11 +34,11 @@ export default function AboutPage() {
               fontSize: { xs: "1.1rem", md: "1.3rem" },
             }}
           >
-            From a founder vision to an open-source movement.
+            A commitment to auditable transparency, professional efficiency, and Open Core freedom.
           </Typography>
         </Box>
 
-        {/* The Beginning Section */}
+        {/* The Beginning Section - UPDATED */}
         <Box component="section" sx={{ my: { xs: 6, md: 8 } }}>
           <Typography
             variant="h4"
@@ -49,25 +50,19 @@ export default function AboutPage() {
               fontSize: { xs: "1.5rem", md: "2.2rem" },
             }}
           >
-            The Beginning: A Problem, a Vision
+            The Origin: Solving an Auditable Problem
           </Typography>
           <Typography
             variant="body1"
             sx={{ mt: 2, color: "text.secondary", lineHeight: 1.6 }}
           >
-            NotaBeen began as a university project, born from a simple but
-            powerful idea: email and messaging can be better. I started this
-            project fueled by a passion for clean, efficient technology and a
-            belief that communication tools should be fast, reliable, and
-            accessible to everyone. For nine months, I poured my time and energy
-            into building a foundation for this vision, driving the project
-            forward through countless hours of development.
+            NotaBeen began not just to fight email clutter, but to solve a fundamental <strong>trust barrier</strong> in modern AI tools. As a developer, I saw that professionals were hesitant to adopt powerful new email AI because they couldn&#39;t verify what was happening to their sensitive data. For nine months, I built the core engine, realizing that true professional adoption would require more than just efficiency, it would require <strong>auditable, verifiable transparency</strong>. This became the non-negotiable principle driving the entire project.
           </Typography>
         </Box>
 
         <Divider sx={{ my: { xs: 6, md: 8 }, borderColor: "divider" }} />
 
-        {/* The Pivot to Open Source Section */}
+        {/* The Pivot to Open Core Section - UPDATED */}
         <Box component="section" sx={{ my: { xs: 6, md: 8 } }}>
           <Typography
             variant="h4"
@@ -79,26 +74,25 @@ export default function AboutPage() {
               fontSize: { xs: "1.5rem", md: "2.2rem" },
             }}
           >
-            The Pivot to Open Source
+            The Strategy: Open Core for Trust and Sustainability
           </Typography>
           <Typography
             variant="body1"
             sx={{ mt: 2, color: "text.secondary", lineHeight: 1.6 }}
           >
-            After a period of strategic re-evaluation, it became clear that the
-            best way to achieve our mission was to pivot to an open-source
-            model, much like successful companies such as PostHog. This new
-            direction is a testament to our commitment to transparency,
-            community, and building a product that truly serves its users. By
-            open-sourcing our core codebase and offering a paid, hosted version,
-            we can democratize access to powerful technology while building a
-            sustainable business.
+            The shift to an <strong>Open Core business model</strong> was a strategic imperative. It allows us to:
+            <br />
+            1. Offer the <strong>NotaBeen Core</strong> (MIT-licensed) for those who demand <strong>absolute data sovereignty</strong> via self-hosting and full code transparency.
+            <br />
+            2. Offer <strong>NotaBeen Professional</strong> (Paid SaaS) to provide the highest <strong>ROI</strong> through managed service features like Intelligent Risk Prioritization and guaranteed <strong>AI Actions</strong>, ensuring a sustainable business that can develop the core engine for everyone.
+            <br />
+            This dual approach directly addresses the market&#39;s need for both <strong>uncompromised trust and professional-grade efficiency</strong>.
           </Typography>
         </Box>
 
         <Divider sx={{ my: { xs: 6, md: 8 }, borderColor: "divider" }} />
 
-        {/* Meet the Founder Section */}
+        {/* Meet the Founder Section - UPDATED */}
         <Box component="section" sx={{ my: { xs: 6, md: 8 } }}>
           <Typography
             variant="h4"
@@ -170,12 +164,7 @@ export default function AboutPage() {
                   textAlign: { xs: "center", sm: "left" },
                 }}
               >
-                As a full-stack developer, I have been the driving force behind
-                every aspect of NotaBeen. I am passionate about building
-                scalable, elegant solutions and am committed to leading this
-                project to success. My new vision is to create a vibrant,
-                developer-led community that helps us build the future of email
-                and messaging together.
+                As the full-stack developer, I built NotaBeen from the ground up, but my focus has shifted from just code to community and commercial sustainability. I am committed to leading a <strong>vibrant, developer-led community</strong> that uses the Open Core model to build the future of auditable, high-ROI email tools.
               </Typography>
             </Box>
           </Box>
@@ -183,7 +172,7 @@ export default function AboutPage() {
 
         <Divider sx={{ my: { xs: 6, md: 8 }, borderColor: "divider" }} />
 
-        {/* Our Vision Section */}
+        {/* Our Vision Section - UPDATED */}
         <Box
           component="section"
           sx={{ my: { xs: 6, md: 8 }, textAlign: "center" }}
@@ -198,22 +187,19 @@ export default function AboutPage() {
               fontSize: { xs: "1.5rem", md: "2.2rem" },
             }}
           >
-            Our Vision
+            Our Auditable Vision
           </Typography>
           <Typography
             variant="body1"
             sx={{ mt: 2, color: "text.secondary", lineHeight: 1.6, mb: 4 }}
           >
-            Our vision is to build an open-source project that becomes the gold
-            standard for developers and businesses alike. We believe in building
-            a future where you own your data and have complete control over your
-            communication tools. Join us on this journey to make NotaBeen the
-            leading open-source solution for the modern web.
+            Our vision is simple: to make <strong>NotaBeen Core</strong> the indispensable, MIT-licensed foundation for every professional and enterprise seeking transparency, and to make <strong>NotaBeen Professional</strong> the most efficient, <strong>high-ROI</strong> managed service available. We believe in a future where trust is not a promise, but a line of code you can inspect.
           </Typography>
           <Button
             href="https://github.com/NotaBeen/notabeen-ai-email-assistant"
             variant="contained"
             size="large"
+            startIcon={<GitHubIcon />}
             sx={{
               bgcolor: "primary.main",
               color: "primary.contrastText",
@@ -223,7 +209,7 @@ export default function AboutPage() {
               },
             }}
           >
-            Explore our GitHub
+            Inspect the Core Code on GitHub
           </Button>
         </Box>
       </Container>

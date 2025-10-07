@@ -4,7 +4,7 @@ import { Box, Container, Typography } from "@mui/material";
 
 /**
  * The AudienceCallOut section is a brief, focused component that directly
- * addresses the target user and their core pain point (Inbox Anxiety).
+ * addresses the target user and their core pain point (Risk/Wasted Time).
  * It uses a strong, boxed design to draw attention to the specific audience.
  * @returns {JSX.Element} The AudienceCallOut component.
  */
@@ -22,7 +22,7 @@ export default function AudienceCallOut() {
           border: (theme) => `1px solid ${theme.palette.divider}`, // Subtle border
         }}
       >
-        {/* Main Audience Headline */}
+        {/* Main Audience Headline - UPDATED */}
         <Typography
           variant="h3"
           sx={{
@@ -32,10 +32,10 @@ export default function AudienceCallOut() {
             color: "text.primary",
           }}
         >
-          Built for Professionals Who Are Tired of Inbox Anxiety.
+          Built for the Independent Professional Who Needs Intelligent Prioritization.
         </Typography>
 
-        {/* Supporting Subtext */}
+        {/* Supporting Subtext - UPDATED */}
         <Typography
           variant="body1"
           sx={{
@@ -45,9 +45,7 @@ export default function AudienceCallOut() {
             lineHeight: 1.6,
           }}
         >
-          NotaBeen is for anyone who feels like their inbox is a full-time job.
-          Stop sifting through clutter and start doing your real, high-impact
-          work.
+          NotaBeen is for those whose time is their revenue. Stop wasting valuable hours sifting through clutter. Leverage our AI to immediately focus on the high-impact work that directly drives your bottom line.
         </Typography>
       </Container>
     </Box>

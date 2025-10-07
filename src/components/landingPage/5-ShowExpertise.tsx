@@ -15,7 +15,7 @@ function ShowExpertise() {
   return (
     <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.default" }}>
       <Container maxWidth="lg">
-        {/* --- Section Header --- */}
+        {/* --- Section Header - UPDATED --- */}
         <Box sx={{ textAlign: "center" }}>
           <Typography
             variant="h4"
@@ -27,7 +27,7 @@ function ShowExpertise() {
               fontSize: { xs: "1.75rem", sm: "2rem", md: "2.5rem" },
             }}
           >
-            Built on Principles, Not Compromises.
+            The Open Core Advantage: Auditable Trust, Proven Security.
           </Typography>
           <Typography
             variant="body1"
@@ -39,9 +39,7 @@ function ShowExpertise() {
               mx: "auto",
             }}
           >
-            We believe in creating a product that prioritizes user control and
-            privacy above all else. That is why we built NotaBeen as an
-            open-source project.
+            We don&apos;t just ask for your trust; we prove it. Our <strong>Open Core</strong> model combines the convenience of a premium SaaS with the assurance of a fully auditable, MIT-licensed codebase. This is how we eliminate the &quot;black box&quot; risk of modern AI tools.
           </Typography>
         </Box>
 
@@ -55,7 +53,7 @@ function ShowExpertise() {
             alignItems: "stretch",
           }}
         >
-          {/* Card 1: Privacy and Security */}
+          {/* Card 1: Privacy and Security - Minor Update */}
           <Paper
             elevation={3}
             sx={{
@@ -100,14 +98,11 @@ function ShowExpertise() {
                 fontSize: { xs: "0.95rem", md: "1rem" },
               }}
             >
-              Whether you use the self-hosted open-source version (where your AI
-              runs on your own server) or our managed service, your data is
-              processed with the highest security standards and never used to
-              train models or sold to third parties.
+              Your data is processed only for prioritization. Whether you use the <strong>NotaBeen Professional</strong> managed service or the self-hosted Core, your information is never used to train models, nor is it sold to third parties.
             </Typography>
           </Paper>
 
-          {/* Card 2: Control and Choice */}
+          {/* Card 2: Control and Choice - Minor Update */}
           <Paper
             elevation={3}
             sx={{
@@ -142,7 +137,7 @@ function ShowExpertise() {
                 fontSize: { xs: "1.2rem", md: "1.5rem" },
               }}
             >
-              Control Is Our Feature
+              Two Paths: Convenience or Sovereignty
             </Typography>
             <Typography
               variant="body1"
@@ -152,10 +147,7 @@ function ShowExpertise() {
                 fontSize: { xs: "0.95rem", md: "1rem" },
               }}
             >
-              We give you the choice. Deploy the entire platform yourself for
-              absolute control over your data, or use our convenient hosted
-              service. Either way, you get a powerful, AI-driven platform
-              without compromising your professional privacy or security.
+              <strong>NotaBeen Professional</strong> offers a powerful, maintenance-free hosted experience. <strong>NotaBeen Core</strong> is free to download and self-host, giving you absolute control over your infrastructure and ensuring maximum data sovereignty for technical users.
             </Typography>
           </Paper>
         </Box>
