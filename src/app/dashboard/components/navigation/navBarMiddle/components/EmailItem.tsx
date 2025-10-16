@@ -15,26 +15,7 @@ import {
   StarsOutlined as StarsOutlinedIcon,
 } from "@mui/icons-material";
 import { EmailItemProps } from "@/types/interfaces";
-
-// Helper function to get colors based on urgency
-const getUrgencyColors = (urgencyScore: string | number) => {
-  const score = Number(urgencyScore);
-
-  // Adjusted colors for better visual distinction
-  if (score >= 71) {
-    // High Urgency (Critical)
-    return { main: "#DC2626", light: "rgba(220, 38, 38, 0.1)" }; // Red
-  } else if (score >= 41) {
-    // Medium Urgency (Important)
-    return { main: "#F97316", light: "rgba(249, 115, 22, 0.1)" }; // Orange
-  } else if (score >= 11) {
-    // Low Urgency (Neutral)
-    return { main: "#478978", light: "rgba(59, 130, 246, 0.1)" }; // Blue
-  } else {
-    // Very Low Urgency (Info/Promotional)
-    return { main: "#3a5683", light: "rgba(156, 163, 175, 0.1)" }; // Light Gray
-  }
-};
+import { getUrgencyColor } from "@/constants/urgencyColors";
 
 const EmailItem: React.FC<EmailItemProps> = ({
   email,
@@ -44,7 +25,7 @@ const EmailItem: React.FC<EmailItemProps> = ({
   onActionUpdate,
   formatDate,
 }) => {
-  const { main } = getUrgencyColors(email.urgencyScore);
+  const { main } = getUrgencyColor(email.urgencyScore);
 
   const isArchived = email.userActionTaken === "Archived";
   const hasAttachments =

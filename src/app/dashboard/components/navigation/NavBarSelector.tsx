@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 
 import { Email } from "@/types/interfaces";
+import { CATEGORY_STYLES } from "@/constants/urgencyColors";
 
 // Type definitions remain in the same file for now
 export type ExtractedEntities = {
@@ -45,45 +46,6 @@ const filters = [
   { key: "archived", label: "Archived" }, // ✅ Added archived filter
   { key: "all", label: "All" }, // ✅ Added all filter
 ];
-
-const categoryStyles: {
-  [key: string]: { backgroundColor: string; color: string };
-} = {
-  urgent: {
-    backgroundColor: "rgba(205, 71, 96, 0.05)",
-    color: "#ce4760",
-  },
-  important: {
-    backgroundColor: "rgba(253, 186, 116, 0.1)",
-    color: "#f08700",
-  },
-  canWait: {
-    backgroundColor: "rgba(103, 166, 103, 0.1)",
-    color: "#478978",
-  },
-  unsubscribe: {
-    backgroundColor: "#F5F5F5",
-    color: "#3a5683",
-  },
-  unimportant: {
-    backgroundColor: "#F5F5F5",
-    color: "#9CA3AF",
-  },
-  // ✅ Styling for the new archived tab
-  archived: {
-    backgroundColor: "#F5F5F5",
-    color: "#6B7280",
-  },
-  // ✅ Styling for the new all tab
-  all: {
-    backgroundColor: "#F5F5F5",
-    color: "#1F2937",
-  },
-  default: {
-    backgroundColor: "#F9FAFB",
-    color: "#1F2937",
-  },
-};
 
 const NavBarSelector: React.FC<NavBarSelectorProps> = ({
   emails,
@@ -189,7 +151,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
             {mainFilters.map((filter) => {
               const isActive = activeFilter === filter.key;
               const { color } =
-                categoryStyles[filter.key] || categoryStyles.default;
+                CATEGORY_STYLES[filter.key] || CATEGORY_STYLES.default;
               return (
                 <Box
                   key={filter.key}
@@ -270,7 +232,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
             {subFilters.map((filter) => {
               const isActive = activeFilter === filter.key;
               const { color } =
-                categoryStyles[filter.key] || categoryStyles.default;
+                CATEGORY_STYLES[filter.key] || CATEGORY_STYLES.default;
               return (
                 <Box
                   key={filter.key}
@@ -379,7 +341,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
           {mainFilters.map((filter) => {
             const isActive = activeFilter === filter.key;
             const { color } =
-              categoryStyles[filter.key] || categoryStyles.default;
+              CATEGORY_STYLES[filter.key] || CATEGORY_STYLES.default;
             return (
               <Box
                 key={filter.key}
@@ -477,7 +439,7 @@ const NavBarSelector: React.FC<NavBarSelectorProps> = ({
           {subFilters.map((filter) => {
             const isActive = activeFilter === filter.key;
             const { color } =
-              categoryStyles[filter.key] || categoryStyles.default;
+              CATEGORY_STYLES[filter.key] || CATEGORY_STYLES.default;
             return (
               <Box
                 key={filter.key}
