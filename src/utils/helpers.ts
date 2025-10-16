@@ -1,5 +1,7 @@
 // src/utils/helpers.ts
 
+import { getUrgencyColorMain } from "@/constants/urgencyColors";
+
 export const formatDate = (dateString: string) => {
   try {
     const date = new Date(dateString);
@@ -16,9 +18,11 @@ export const formatDate = (dateString: string) => {
   }
 };
 
+/**
+ * @deprecated Use getUrgencyColorMain from @/constants/urgencyColors instead
+ * This function is kept for backwards compatibility but will be removed in a future version
+ */
 export const getUrgencyColor = (score: number | string) => {
-  const numericScore = typeof score === "string" ? parseFloat(score) : score;
-  if (numericScore > 70) return "#EE8802";
-  if (numericScore > 40) return "#FF5733";
-  return "#808080";
+  // Import from centralized location for consistency
+  return getUrgencyColorMain(score);
 };
