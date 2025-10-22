@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 import posthog from "posthog-js";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 
 /**
  * Defines the structure for a navigation item.
@@ -245,13 +245,26 @@ export default function Navigation({ pages }: NavigationProps) {
             }}
             // Use Button component property when handling onClick actions
             component="button"
-            onClick={() => {
+            onClick={async () => {
               // Posthog tracking for analytics
               if (typeof posthog !== "undefined") {
                 posthog.capture("get_started_button_click");
               }
               // Trigger sign-in flow (e.g., Google OAuth)
-              signIn("google");
+              try {
+                await signIn.social({ provider: "google" });
+              } catch (err: unknown) {
+                console.error("Sign-in failed:", err);
+                const error = err as Error;
+                // Report failure to analytics
+                if (typeof posthog !== "undefined") {
+                  posthog.capture("get_started_signin_error", {
+                    error: error?.message || "Unknown error",
+                  });
+                }
+                // Show user-facing feedback
+                alert("Sign-in failed. Please try again.");
+              }
             }}
           >
             Get Started

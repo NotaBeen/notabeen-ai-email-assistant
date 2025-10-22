@@ -3,7 +3,7 @@
 
 import React, { useEffect } from "react";
 import { Box, CssBaseline } from "@mui/material";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import Head from "next/head";
 import { landing_page_navigation } from "@/lib/constants";
 
@@ -27,8 +27,9 @@ import Footer from "@/components/layout/Footer";
  * @returns {JSX.Element} The Home page content.
  */
 export default function Home() {
-  // Use NextAuth's useSession hook to check the user's authentication status
-  const { data: session, status } = useSession();
+  // Use Better Auth's useSession hook to check the user's authentication status
+  const { data: session, isPending } = useSession();
+  const status = isPending ? "loading" : session ? "authenticated" : "unauthenticated";
 
   /**
    * Effect hook to handle automatic redirection for authenticated users.

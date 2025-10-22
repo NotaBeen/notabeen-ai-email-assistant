@@ -19,7 +19,7 @@ import {
   ListItemText,
   Link as MuiLink, // Use MuiLink for consistency in styling
 } from "@mui/material";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { Merriweather_Sans } from "next/font/google";
 import { motion } from "framer-motion";
 import posthog from "posthog-js";
@@ -120,8 +120,9 @@ const linkifyContent = (content: string) => {
 const TermsConditionsPopup: React.FC<TermsConditionsPopupProps> = ({
   onAcceptTerms,
 }) => {
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = useSession();
   const user = session?.user;
+  const status = isPending ? "loading" : session ? "authenticated" : "unauthenticated";
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
