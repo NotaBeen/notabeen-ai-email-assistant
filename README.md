@@ -40,7 +40,7 @@ NotaBeen is an open-source email assistant that uses AI to help you manage your 
 - [Next.js](https://nextjs.org/) — Framework
 - [Material UI](https://mui.com/) — UI Components
 - [MongoDB](https://www.mongodb.com/) — Database
-- [NextAuth.js](https://next-auth.js.org/) — Authentication
+- [Better Auth](https://www.better-auth.com/) — Authentication
 - [Google Gemini API](https://ai.google.dev/docs/gemini_api_overview) — AI Engine
 
 ---
@@ -73,39 +73,67 @@ npm install
 
 ### 3. Set up environment variables
 
-Create a `.env.local` file in the root directory and add the following variables:
+Create a `.env.local` file in the root directory by copying `.env.example`:
 
-```env
-# NextAuth & Security
-AUTH_SECRET= node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-NEXTAUTH_URL="http://localhost:3000"
-
-# Google OAuth (Authentication & Gmail Access)
-# NOTE: This MUST be set up with the Gmail API scope enabled in Google Cloud.
-# NOTE: The Callback url is http://localhost:3000/api/auth/callback/google for google Auth
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-
-# Database & Encryption
-MONGODB_URI=
-MONGO_CLIENT=
-ENCRYPTION_IV=
-ENCRYPTION_KEY=
-
-# AI Engine
-GEMINI_API_KEY=
+```sh
+cp .env.example .env.local
 ```
 
-#### Environment Variable Instructions
+Then fill in the following required variables:
 
-- **AUTH_SECRET:** In terminal ```run node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"```
-- **NEXTAUTH_URL:** Base URL for your app (e.g., `http://localhost:3000` for local development).
-- **GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET:** From your Google Cloud OAuth 2.0 credentials.
-- **MONGODB_URI:** Connection string for your MongoDB database.
-- **MONGO_CLIENT:** Database name (e.g., `test` or `notabeen-db`).
-- **ENCRYPTION_IV:** Run `openssl rand -base64 9` to generate.
-- **ENCRYPTION_KEY:** Run `openssl rand -base64 24` to generate.
-- **GEMINI_API_KEY:** Your Google Gemini API key.
+```env
+# Authentication (Better Auth)
+AUTH_SECRET=                    # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
+
+# Google OAuth
+GOOGLE_CLIENT_ID=               # From Google Cloud Console
+GOOGLE_CLIENT_SECRET=           # From Google Cloud Console
+
+# Database
+MONGODB_URI=                    # Your MongoDB connection string
+MONGO_CLIENT=notabeen          # Database name
+
+# Email Encryption
+ENCRYPTION_KEY=                 # Generate with: openssl rand -base64 24
+ENCRYPTION_IV=                  # Generate with: openssl rand -base64 9
+
+# AI Engine
+GEMINI_API_KEY=                # From Google AI Studio
+```
+
+#### Environment Variable Setup Guide
+
+1. **AUTH_SECRET** (Required)
+   ```sh
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+   This generates a 64-character hex string used for encrypting OAuth tokens.
+
+2. **Google OAuth Credentials** (Required)
+   - Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   - Create OAuth 2.0 Client ID (Web application)
+   - Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
+   - Enable [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com)
+   - Copy Client ID and Client Secret
+
+3. **MongoDB Database** (Required)
+   - Use MongoDB Atlas (cloud) or local MongoDB
+   - Set `MONGODB_URI` to your connection string
+   - Set `MONGO_CLIENT` to your database name (default: `notabeen`)
+
+4. **Encryption Keys** (Required for email security)
+   ```sh
+   # Generate encryption key (32 characters)
+   openssl rand -base64 24
+
+   # Generate initialization vector (12 characters)
+   openssl rand -base64 9
+   ```
+
+5. **Google Gemini API Key** (Required)
+   - Get your API key from [Google AI Studio](https://ai.google.dev/)
 
 ### 4. Run the dev server
 
