@@ -23,7 +23,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/Person";
 import HomeIcon from "@mui/icons-material/Home";
 import { useState, useCallback, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/auth-client";
 import { Email } from "@/types/interfaces";
 
 // --- Type Definitions ---
@@ -111,9 +111,10 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
   setOverviewOpen,
   quotaExceeded = false,
 }) => {
-  // Authentication: Use NextAuth's session hook
-  const { data: session, status } = useSession();
+  // Authentication: Use Better Auth's session hook
+  const { data: session, isPending } = useSession();
   const user = session?.user;
+  const status = isPending ? "loading" : session ? "authenticated" : "unauthenticated";
 
   // State
   const [isLoading, setIsLoading] = useState(false);
@@ -128,10 +129,11 @@ const NavBarTop: React.FC<NavBarTopProps> = ({
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("sm"));
 
   /**
-   * Handles user logout using NextAuth.
+   * Handles user logout using Better Auth.
    */
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/" });
+    await signOut();
+    window.location.href = "/";
   };
 
   /**

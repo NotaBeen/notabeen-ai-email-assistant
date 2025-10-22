@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { Box, Snackbar, Alert, Stack } from "@mui/material";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/auth-client";
 import { UserData } from "./ProfileTypes";
 
 // UI Components
@@ -23,9 +23,10 @@ import { ExportDataDialog } from "./dialogs/ExportDataDialog";
  * @returns {JSX.Element} The Profile page component.
  */
 export default function Profile() {
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = useSession();
   const user = session?.user;
-  const isSessionLoading = status === "loading";
+  const status = isPending ? "loading" : session ? "authenticated" : "unauthenticated";
+  const isSessionLoading = isPending;
 
   const [userData, setUserData] = useState<UserData | null>(null);
   // Separate loading state for API calls *after* the session is established
@@ -86,7 +87,8 @@ export default function Profile() {
    * Handles the successful deletion of an account, logging the user out afterwards.
    */
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/" });
+    await signOut();
+    window.location.href = "/";
   };
 
   /**

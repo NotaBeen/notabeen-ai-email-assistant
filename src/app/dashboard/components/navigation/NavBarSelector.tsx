@@ -28,7 +28,6 @@ export type NavBarSelectorProps = {
   currentEmail: Email | null;
   setFilter: (filter: string) => void;
   setEmails: (emails: Email[]) => void;
-  accessToken: string;
   filteredEmails: Email[];
   setFilteredEmails: (emails: Email[]) => void;
   mobileOpen?: boolean;

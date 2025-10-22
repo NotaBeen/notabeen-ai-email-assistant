@@ -6,7 +6,8 @@ import { NextResponse, NextRequest } from "next/server";
 import axios, { AxiosError } from "axios"; // Import AxiosError
 import { MongoClient, ObjectId } from "mongodb";
 import { CustomError } from "@/utils/errorHandler";
-import { auth } from "@/auth";
+import { validateUserSession } from "@/lib/session-helpers";
+import { getGoogleAccessToken } from "@/lib/auth";
 
 // --- Minimal Type Definitions to avoid 'any' ---
 interface MessagePart {
@@ -34,50 +35,20 @@ function isAxiosError(error: unknown): error is AxiosError {
   return axios.isAxiosError(error);
 }
 
-// 🚨 NextAuth Change: Validate session using NextAuth auth() function
-async function validateUserSession() {
-  const session = await auth();
-  if (!session || !session.user?.id) {
-    throw new CustomError("Unauthorized: Session or User ID is missing.", 401);
-  }
-  return session;
-}
-
-/**
- * 🚨 NextAuth Change: Fetches the Google Access Token from the NextAuth 'accounts' collection.
- */
-async function fetchGoogleAccessToken(userId: string): Promise<string | null> {
-  try {
-    const clientConnection = await clientPromise;
-    const db = clientConnection.db(collectionName);
-    const collection = db.collection("accounts"); // NextAuth default collection name for accounts
-
-    const account = await collection.findOne({
-      // We must query by the NextAuth User ID, which is an ObjectId in the accounts table
-      userId: new ObjectId(userId),
-      provider: "google", // Assuming Google is the provider
-    });
-
-    return (account?.access_token as string) || null;
-  } catch (error) {
-    console.error("Error fetching Google Access Token from database:", error);
-    throw new Error("Error fetching Google Access Token");
-  }
-}
+// Removed - using validateUserSession and getGoogleAccessToken from lib
 
 export async function GET(req: NextRequest) {
   try {
     // Validate the user's session first, so we don't rely on URL params for auth
-    const session = await validateUserSession();
+    const session = await validateUserSession(req);
 
-    // 🚨 NextAuth Change: Use session.user.id
     const userId = session.user?.id;
     if (!userId) {
       throw new CustomError("Invalid session data: User ID is missing.", 400);
     }
 
-    // 🚨 NextAuth Change: Fetch token directly from the database
-    const idpAccessToken = await fetchGoogleAccessToken(userId);
+    // Fetch decrypted token from the database
+    const idpAccessToken = await getGoogleAccessToken(userId);
 
     if (!idpAccessToken) {
       return NextResponse.json(

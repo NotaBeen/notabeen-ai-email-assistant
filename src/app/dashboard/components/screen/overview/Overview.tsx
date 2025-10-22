@@ -23,7 +23,6 @@ type OverviewProps = {
   setCurrentEmail: (email: Email | null) => void;
   currentEmail: Email | null;
   setScreen: (screen: string) => void;
-  accessToken: string;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
 };
@@ -33,7 +32,6 @@ function Overview({
   setEmails,
   setCurrentEmail,
   currentEmail,
-  accessToken,
   activeFilter,
   setActiveFilter,
 }: OverviewProps) {
@@ -146,7 +144,6 @@ function Overview({
             setEmails={handleSetEmails}
             filteredEmails={filteredEmails}
             setFilteredEmails={setFilteredEmails}
-            accessToken={accessToken}
             activeFilter={activeFilter}
             mobileOpen={mobileOpen}
             setMobileOpen={setMobileOpen}
@@ -200,7 +197,6 @@ function Overview({
           setEmails={handleSetEmails}
           filteredEmails={filteredEmails}
           setFilteredEmails={setFilteredEmails}
-          accessToken={accessToken}
           activeFilter={activeFilter}
         />
       </Box>

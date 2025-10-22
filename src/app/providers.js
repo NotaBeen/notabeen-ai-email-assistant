@@ -10,7 +10,7 @@ import {
 } from "react";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
-import { useSession } from "next-auth/react"; // Use NextAuth's hook
+import { useSession } from "@/lib/auth-client"; // Use Better Auth's hook
 
 import CookieBanner from "../components/ui/CookieBanner";
 

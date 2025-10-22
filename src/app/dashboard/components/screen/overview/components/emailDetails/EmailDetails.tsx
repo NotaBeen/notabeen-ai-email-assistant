@@ -8,8 +8,8 @@ import {
 } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import CloseIcon from "@mui/icons-material/Close";
-// 🚨 FIX 1: Replace Auth0's useUser with NextAuth's useSession
-import { useSession } from "next-auth/react";
+// Using Better Auth's useSession
+import { useSession } from "@/lib/auth-client";
 
 import EmailContentDisplay from "./components/EmailContentDisplay";
 import { Email } from "@/types/interfaces";
@@ -51,35 +51,31 @@ function EmailDetails({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  // 🚨 FIX 2: Use NextAuth's useSession hook
+  // Use Better Auth's useSession hook
   const { data: session } = useSession();
-
-  // 🚨 FIX 3: Get the Google Access Token from the custom session property
-  const accessToken = session?.googleAccessToken;
 
   const getFullEmail = useCallback(
     async (emailId: string) => {
-      // Check if the token is available
+      // Check if session is available
       if (!emailId) {
         setError("No email ID provided");
         return;
       }
-      if (!accessToken) {
-        setError("Authentication token missing. Please sign in again.");
+      if (!session) {
+        setError("Not authenticated. Please sign in again.");
         return;
       }
 
       setFullEmailLoading(true);
       setError(null);
       try {
+        // Token is fetched server-side from database
         const response = await fetch(
           `/api/gmail/individual-email?emailId=${emailId}`,
           {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              // 🚨 FIX 4: Use the NextAuth-derived accessToken
-              Authorization: `Bearer ${accessToken}`,
             },
           },
         );
@@ -103,17 +99,16 @@ function EmailDetails({
         setFullEmailLoading(false);
       }
     },
-    // 🚨 FIX 5: Dependency array now correctly includes accessToken
-    [accessToken, setFullEmail],
+    [session, setFullEmail],
   );
 
   useEffect(() => {
-    // Only attempt to fetch if the current email is set AND we have a token
-    if (currentEmail && accessToken) {
+    // Only attempt to fetch if the current email is set AND we have a session
+    if (currentEmail && session) {
       setFullEmail({ body: "", attachments: [] });
       getFullEmail(currentEmail.emailId);
     }
-  }, [currentEmail, accessToken, getFullEmail, setFullEmail]); // Added accessToken to dependencies
+  }, [currentEmail, session, getFullEmail, setFullEmail]);
 
   const handleCloseViewer = () => {
     setCurrentEmail(null);

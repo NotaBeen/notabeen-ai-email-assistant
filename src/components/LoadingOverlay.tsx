@@ -70,7 +70,7 @@ interface LoadingOverlayProps {
 function LoadingOverlay({
   queueStats,
   enableQueueMonitoring = false,
-  pollIntervalMs = 3000,
+  pollIntervalMs = 1500,
   queueStatusEndpoint = "/api/gmail/queue-status"
 }: Readonly<LoadingOverlayProps>) {
   const theme = useTheme();

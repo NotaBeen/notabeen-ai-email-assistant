@@ -5,7 +5,7 @@ import { Button, Typography, Box, Link, Container } from "@mui/material";
 import React from "react";
 import posthog from "posthog-js";
 import Image from "next/image";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 
 /**
  * Handles PostHog event capture for CTA clicks.
@@ -108,10 +108,10 @@ function Hero() {
               boxShadow: (theme) =>
                 `0 4px 15px ${theme.palette.primary.light}80`,
             }}
-            onClick={() => {
+            onClick={async () => {
               handleButtonClick("hero_cta_start_professional"); // New event name
-              // Initiate Google sign-in process via NextAuth
-              signIn("google", { callbackUrl: "/dashboard" });
+              // Initiate Google sign-in process via Better Auth
+              await signIn.social({ provider: "google", callbackURL: "/dashboard" });
             }}
           >
             Start Professional (€28.99 /mo)

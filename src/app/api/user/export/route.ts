@@ -7,10 +7,10 @@
  * All encrypted fields are decrypted prior to export.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId, Document } from "mongodb";
 import crypto from "crypto";
-import { auth } from "@/auth"; // NextAuth's server-side session function
+import { validateUserSession } from "@/lib/session-helpers";
 
 // --- Type Definitions ---
 
@@ -95,7 +95,7 @@ function decrypt(
  * Handles GET requests to export user data for GDPR compliance.
  * @returns {Promise<NextResponse>} The JSON response containing the user's data and GDPR information.
  */
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
   const MONGODB_URI = process.env.MONGODB_URI;
   const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
   const ENCRYPTION_IV = process.env.ENCRYPTION_IV;
@@ -132,10 +132,7 @@ export async function GET(): Promise<NextResponse> {
   let client: MongoClient | null = null;
   try {
     // 2. Session and Authorization Check
-    const session = await auth();
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const session = await validateUserSession(req);
 
     // 3. Database Connection and Fetch
     client = new MongoClient(MONGODB_URI);

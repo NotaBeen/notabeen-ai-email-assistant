@@ -5,7 +5,7 @@ import React from "react";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import GitHubIcon from "@mui/icons-material/GitHub"; // Importing GitHub icon for the open-source button
 import posthog from "posthog-js";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 
 // Function to handle tracking user clicks (using posthog)
 const handleButtonClick = (action: string) => {
@@ -98,9 +98,9 @@ function FinalCTA() {
               boxShadow: "none",
               textTransform: "none",
             }}
-            onClick={() => {
+            onClick={async () => {
               handleButtonClick("hosted_cta_click");
-              signIn("google"); // Assuming 'google' is the sign-in provider
+              await signIn.social({ provider: "google" }); // Better Auth sign-in
             }}
           >
             Start Professional (€28.99 /mo)

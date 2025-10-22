@@ -8,7 +8,8 @@ import { MongoClient, ObjectId } from "mongodb";
 import { CustomError, handleApiError } from "@/utils/errorHandler";
 import { logger } from "@/utils/logger";
 import { decodeBase64Url } from "@/utils/crypto";
-import { auth } from "@/auth";
+import { validateUserSession } from "@/lib/session-helpers";
+import { getGoogleAccessToken } from "@/lib/auth";
 
 // --- MongoDB Setup (Needed for fetching the Google access token) ---
 const uri = process.env.MONGODB_URI ?? "";
@@ -40,33 +41,7 @@ interface MessagePart {
   parts?: MessagePart[];
 }
 
-async function validateUserSession() {
-  const session = await auth();
-  if (!session || !session.user?.id) {
-    // Use session.user.id for validation
-    throw new CustomError("Unauthorized: Session or User ID is missing.", 401);
-  }
-  return session;
-}
-
-async function fetchGoogleAccessToken(userId: string): Promise<string | null> {
-  try {
-    const clientConnection = await clientPromise;
-    const db = clientConnection.db(collectionName);
-    const collection = db.collection("accounts");
-
-    const account = await collection.findOne({
-      // NextAuth stores userId in the accounts table as an ObjectId
-      userId: new ObjectId(userId),
-      provider: "google",
-    });
-
-    return (account?.access_token as string) || null;
-  } catch (error) {
-    logger.error("Error fetching Google Access Token from database:", error);
-    throw new Error("Error fetching Google Access Token");
-  }
-}
+// Removed - using validateUserSession from session-helpers and getGoogleAccessToken from lib/auth
 
 // Corrected: Recursive function to parse email payload and fetch attachments
 
@@ -143,7 +118,7 @@ async function fetchFullMessageDetails(
 // --- Main GET Handler for Individual Email ---
 export async function GET(req: NextRequest) {
   try {
-    const session = await validateUserSession();
+    const session = await validateUserSession(req);
 
     const userId = session.user?.id;
     if (!userId) {
@@ -160,8 +135,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // FIX: Replaced Auth0 logic with MongoDB token fetching
-    const idpAccessToken = await fetchGoogleAccessToken(userId);
+    // FIX: Get decrypted Google access token from database
+    const idpAccessToken = await getGoogleAccessToken(userId);
 
     if (!idpAccessToken) {
       return NextResponse.json(

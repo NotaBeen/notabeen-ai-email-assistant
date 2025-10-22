@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 "use client";
 import { Box } from "@mui/material";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/auth-client";
 import { useEffect, useState, useCallback } from "react"; // Removed unused 'useRef'
 import Profile from "@/app/dashboard/components/screen/profile/Profile";
 import NavBarTop from "@/app/dashboard/components/navigation/NavBarTop";
@@ -15,12 +15,9 @@ import { Email } from "@/types/interfaces";
 type CurrentEmail = Email;
 
 function Dashboard() {
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = useSession();
   const user = session?.user;
-
-  // Assuming the NextAuth session callback injects 'googleAccessToken' as a string.
-  const accessToken = (session as { googleAccessToken?: string })
-    ?.googleAccessToken;
+  const status = isPending ? "loading" : session ? "authenticated" : "unauthenticated";
 
   const [screen, setScreen] = useState("overview");
   const [currentEmail, setCurrentEmail] = useState<CurrentEmail | null>(null);
@@ -83,7 +80,7 @@ function Dashboard() {
 
   // Function to fetch emails from the backend (processed emails for display)
   const getEmails = useCallback(async () => {
-    if (termsAccepted === false || !accessToken) return;
+    if (termsAccepted === false) return;
     setIsDataLoading(true);
 
     try {
@@ -112,20 +109,22 @@ function Dashboard() {
     } finally {
       setIsDataLoading(false);
     }
-  }, [accessToken, termsAccepted]);
+  }, [termsAccepted]);
 
   // Function to refresh the inbox by calling the Gmail API
   const refreshInbox = useCallback(
     async (isInitialLoad = false) => {
-      if (termsAccepted === false || !accessToken) return;
-      setIsDataLoading(true);
+      if (termsAccepted === false) return;
 
-      // Set loading overlay state
-      setLoadingState({
-        isOpen: true,
-        operationType: isInitialLoad ? 'initial' : 'refresh',
-        message: isInitialLoad ? 'Loading your workspace...' : 'Refreshing your emails...'
-      });
+      // Only set loading state for manual refreshes, not initial load
+      if (!isInitialLoad) {
+        setIsDataLoading(true);
+        setLoadingState({
+          isOpen: true,
+          operationType: 'refresh',
+          message: 'Refreshing your emails...'
+        });
+      }
 
       try {
         const response = await fetch("/api/gmail", {
@@ -137,18 +136,9 @@ function Dashboard() {
         if (response.ok) {
           const data = await response.json();
 
-          // Update loading state with queue information if available
-          if (data.queueStats) {
-            setLoadingState(prev => ({
-              ...prev,
-              message: `Processing ${data.queueStats.total} emails...`,
-              operationType: 'queue',
-              queueStats: data.queueStats,
-              showProgress: data.queueStats.total > 0
-            }));
-          }
+          // Don't call getEmails here - it's already being called separately
+          // This prevents duplicate calls and allows parallel execution
 
-          await getEmails(); // Fetch the new list of emails for display
           posthog.capture("gmail_connected");
           if (isInitialLoad) setInitialRefreshDone(true);
           // Clear any previous quota errors on success
@@ -159,7 +149,8 @@ function Dashboard() {
 
           if (response.status === 401) {
             // User's Google token is likely expired/revoked
-            await signOut({ callbackUrl: "/" });
+            await signOut();
+            window.location.href = "/";
           } else if (response.status === 429 && errorData.rateLimitInfo) {
             // Handle quota exceeded error
             setQuotaError({
@@ -176,12 +167,14 @@ function Dashboard() {
       } catch (error) {
         console.error("Failed to process emails:", error);
       } finally {
-        setIsDataLoading(false);
-        // Close loading overlay
-        setLoadingState(prev => ({ ...prev, isOpen: false }));
+        if (!isInitialLoad) {
+          setIsDataLoading(false);
+          // Close loading overlay
+          setLoadingState(prev => ({ ...prev, isOpen: false }));
+        }
       }
     },
-    [accessToken, getEmails, termsAccepted],
+    [termsAccepted],
   );
 
   // Function to check queue status and update persistent indicator
@@ -206,25 +199,30 @@ function Dashboard() {
   // 2. useEffect for email processing and display refresh based on terms acceptance
   useEffect(() => {
     let intervalId: NodeJS.Timeout | undefined;
+    console.log("[DEBUG] termsAccepted state:", termsAccepted, "initialRefreshDone:", initialRefreshDone);
     if (termsAccepted === true) {
-      console.log(
-        "Terms accepted. Checking for initial refresh and setting up interval.",
-      );
-      if (!initialRefreshDone) {
-        refreshInbox(true); // Call the API immediately upon loading
-      } else {
-        getEmails(); // If initial refresh is done, just fetch the current list for display
-      }
-      // Set up the interval for continuous refresh
+      console.log("Terms accepted. Loading existing emails first, then refreshing from Gmail."); // Force recompile
+
+      // STEP 1: Immediately load any existing emails from the database
+      console.log("[DEBUG] Calling getEmails() first for instant display");
+      getEmails();
+
+      // STEP 2: Then fetch new emails from Gmail in the background
+      console.log("[DEBUG] Calling refreshInbox(true) in background");
+      refreshInbox(true);
+
+      // Set up the interval for continuous refresh - every 10 seconds for faster updates
       intervalId = setInterval(() => {
         refreshInbox();
-      }, 30000);
+      }, 10000);
 
       return () => clearInterval(intervalId);
     } else if (termsAccepted === false) {
       console.log(
         "Terms not accepted. Not fetching emails or setting up refresh.",
       );
+    } else {
+      console.log("[DEBUG] termsAccepted is null/undefined");
     }
     // Cleanup if termsAccepted changes to null (e.g., on signout)
     return () => {
@@ -232,7 +230,7 @@ function Dashboard() {
         clearInterval(intervalId);
       }
     };
-  }, [termsAccepted, getEmails, refreshInbox, initialRefreshDone]);
+  }, [termsAccepted, refreshInbox, getEmails]);
 
   const handleTermsAccepted = () => {
     setTermsAccepted(true);
@@ -286,7 +284,6 @@ function Dashboard() {
               setCurrentEmail={setCurrentEmail}
               currentEmail={currentEmail}
               setScreen={setScreen}
-              accessToken={accessToken || ""}
               setEmails={setEmails}
               activeFilter={activeFilter}
               setActiveFilter={setActiveFilter}

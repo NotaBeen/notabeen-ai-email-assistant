@@ -1,18 +1,16 @@
 import React from "react";
 import { Card, CardContent, Box, Typography } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
-// Import the necessary Session type from next-auth
-import { Session } from "next-auth";
 import { UserData } from "../ProfileTypes";
 
 /**
  * @typedef {Object} AccountInfoCardProps
  * @property {UserData | null} userData - Custom application-specific user data.
- * @property {Session["user"] | undefined} user - The user object from the NextAuth session.
+ * @property {object | undefined} user - The user object from the Better Auth session.
  */
 type AccountInfoCardProps = {
   userData: UserData | null;
-  user: Session["user"] | undefined;
+  user: { id: string; email: string; name?: string | null; image?: string | null } | undefined;
 };
 
 /**

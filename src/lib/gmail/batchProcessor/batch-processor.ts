@@ -40,7 +40,8 @@ interface BatchProcessingResult {
  */
 async function processBatchIndividually(
   messages: GmailMessage[],
-  emailDelayMs: number
+  emailDelayMs: number,
+  emailOwner: string
 ): Promise<BatchProcessingResult> {
   const result: BatchProcessingResult = {
     successful: [],
@@ -64,7 +65,7 @@ async function processBatchIndividually(
     );
 
     // processSingleEmail returns a union type that requires narrowing
-    const promises = group.map((message) => processSingleEmail(message));
+    const promises = group.map((message) => processSingleEmail(message, emailOwner));
     const results = await Promise.allSettled(promises);
 
     let hasRateLimit = false;
@@ -132,22 +133,23 @@ async function processBatchIndividually(
  */
 async function processBatch(
   messages: GmailMessage[],
-  emailDelayMs: number
+  emailDelayMs: number,
+  emailOwner: string
 ): Promise<BatchProcessingResult> {
   // Use batch API if enabled and we have enough messages
   if (USE_BATCH_API && messages.length >= 3) {
     logger.info(`Using Gemini Batch API for ${messages.length} emails`);
-    const batchResult = await processBatchWithAPI(messages);
+    const batchResult = await processBatchWithAPI(messages, emailOwner);
 
     // If Batch API fails, try falling back to individual processing with a safety delay
     if (batchResult.failed.length > 0 && messages.length > 0 && !batchResult.rateLimitInfo?.quotaExceeded) {
         logger.warn("Batch API failed for some/all messages. Falling back to individual processing with 2000ms delay.");
-        return await processBatchIndividually(messages, 2000);
+        return await processBatchIndividually(messages, 2000, emailOwner);
     }
     return batchResult;
   } else {
     logger.info(`Using individual processing for ${messages.length} emails`);
-    return await processBatchIndividually(messages, emailDelayMs);
+    return await processBatchIndividually(messages, emailDelayMs, emailOwner);
   }
 }
 
@@ -155,7 +157,8 @@ async function processBatch(
  * Main function: Process emails in batches with adaptive backoff to handle rate limits.
  */
 export async function processEmailsInBatches(
-  messages: GmailMessage[]
+  messages: GmailMessage[],
+  emailOwner: string
 ): Promise<BatchProcessingResult> {
   let batchDelayMs = BASE_BATCH_DELAY_MS;
   let emailDelayMs = BASE_EMAIL_DELAY_MS;
@@ -184,7 +187,7 @@ export async function processEmailsInBatches(
     );
 
     try {
-      const batchResult = await processBatch(batch, emailDelayMs);
+      const batchResult = await processBatch(batch, emailDelayMs, emailOwner);
 
       result.successful.push(...batchResult.successful);
       result.failed.push(...batchResult.failed);

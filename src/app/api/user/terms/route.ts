@@ -8,9 +8,9 @@
  * 'terms_acceptance_date'.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
-import { auth } from "@/auth";
+import { validateUserSession } from "@/lib/session-helpers";
 
 // --- Configuration and MongoDB Setup ---
 
@@ -31,16 +31,12 @@ const client = new MongoClient(MONGODB_URI);
  * Handles the POST request to record terms acceptance.
  * @returns {Promise<NextResponse>} The response indicating success or failure.
  */
-export async function POST(): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     // 1. Session and Authorization Check
-    const session = await auth();
+    const session = await validateUserSession(req);
 
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    // Use the NextAuth User ID for lookup
+    // Use the Better Auth User ID for lookup
     const nextAuthUserId = session.user.id;
 
     // 2. Database Operation

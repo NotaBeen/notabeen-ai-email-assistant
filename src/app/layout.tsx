@@ -4,7 +4,6 @@ import { Metadata } from "next";
 import { CSPostHogProvider } from "./providers";
 import RouteValidator from "./RouteValidator";
 import ThemeRegistry from "@/components/ThemeRegistry";
-import { auth } from "../auth"; // Import the server-side 'auth' function from your config
 import SessionWrapper from "./SessionWrapper"; // Import the client component wrapper
 
 // ---
@@ -64,8 +63,8 @@ const isPostHogEnabled = POSTHOG_API_KEY && POSTHOG_HOST;
 
 /**
  * The RootLayout component is a Server Component that wraps the entire application.
- * It fetches the NextAuth session on the server and passes it to the client-side
- * SessionWrapper.
+ * Better Auth manages sessions client-side via React Context, so no server-side
+ * session fetch is needed here.
  * @param {object} props - The component props.
  * @param {React.ReactNode} props.children - The children components to be rendered.
  * @returns {JSX.Element} The root HTML structure for the application.
@@ -73,8 +72,6 @@ const isPostHogEnabled = POSTHOG_API_KEY && POSTHOG_HOST;
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // Fetch the NextAuth session using the server-side 'auth' function
-  const session = await auth();
 
   // Use a conditional wrapper for the PostHog provider
   const WrappedChildren = isPostHogEnabled ? (
@@ -92,8 +89,8 @@ export default async function RootLayout({
           backgroundColor: "#ffffff",
         }}
       >
-        {/* Pass the server-fetched session to the client provider wrapper */}
-        <SessionWrapper session={session}>
+        {/* SessionWrapper is now a simple pass-through */}
+        <SessionWrapper>
           <ThemeRegistry>
             <RouteValidator>{WrappedChildren}</RouteValidator>
           </ThemeRegistry>
