@@ -119,7 +119,7 @@ export const auth = betterAuth({
       ],
       // Map tokens to be stored in the account table
       mapProfileToUser: (profile) => ({
-        id: profile.id,
+        id: profile.sub,
         email: profile.email,
         name: profile.name,
         image: profile.picture,
