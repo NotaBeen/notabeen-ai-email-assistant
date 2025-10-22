@@ -1,7 +1,7 @@
 // src/app/api/gmail/queue-status/route.ts
 
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { validateUserSession } from "@/lib/session-helpers";
 import { getQueueStats } from "@/lib/gmail/email-queue";
 import { handleApiError } from "@/utils/errorHandler";
 import { logger } from "@/utils/logger";
@@ -10,16 +10,10 @@ import { logger } from "@/utils/logger";
  * GET /api/gmail/queue-status
  * Returns the current status of the email processing queue
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     // Validate user session
-    const session = await auth();
-    if (!session || !session.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized: Session or User ID is missing." },
-        { status: 401 }
-      );
-    }
+    const session = await validateUserSession(req);
 
     // Get queue statistics
     const queueStats = getQueueStats();

@@ -9,8 +9,8 @@ import axios from "axios";
 import { CustomError, handleApiError } from "@/utils/errorHandler";
 import { logger } from "@/utils/logger";
 import { decodeBase64Url } from "@/utils/crypto";
-// 🚨 NextAuth Change: Import the new auth function
-import { auth } from "@/auth";
+import { validateUserSession } from "@/lib/session-helpers";
+import { getGoogleAccessToken } from "@/lib/auth";
 
 // 🗑️ REMOVED: MongoDB Setup
 /*
@@ -44,14 +44,7 @@ interface MessagePart {
   parts?: MessagePart[];
 }
 
-// 🚨 NextAuth Change: Validate session using NextAuth auth() function
-async function validateUserSession() {
-  const session = await auth();
-  if (!session || !session.user?.id) {
-    throw new CustomError("Unauthorized: Session or User ID is missing.", 401);
-  }
-  return session;
-}
+// Removed - using validateUserSession from session-helpers
 
 // Corrected: Recursive function to parse email payload and fetch attachments
 async function processEmailPayload(
@@ -125,9 +118,8 @@ async function fetchFullMessageDetails(
 // --- Main GET Handler for Individual Email ---
 export async function GET(req: NextRequest) {
   try {
-    const session = await validateUserSession();
+    const session = await validateUserSession(req);
 
-    // 🚨 NextAuth Change: Use session.user.id
     const userId = session.user?.id;
     if (!userId) {
       throw new CustomError("Invalid session data: User ID is missing.", 400);
@@ -143,17 +135,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Define the expected session type for type safety
-    interface AuthSession {
-      user?: { id?: string };
-      googleAccessToken?: string;
-    }
-    const typedSession = session as AuthSession;
-    const idpAccessToken = typedSession.googleAccessToken;
+    // Fetch decrypted access token from database
+    const idpAccessToken = await getGoogleAccessToken(userId);
 
     if (!idpAccessToken) {
       logger.warn(
-        `Google access token not found in session for user: ${userId}.`,
+        `Google access token not found in database for user: ${userId}.`,
       );
       return NextResponse.json(
         {
