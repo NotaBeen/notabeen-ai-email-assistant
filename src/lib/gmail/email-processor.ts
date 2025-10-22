@@ -9,7 +9,6 @@ import {
   isEmailProcessed,
   saveEmailAndIncrementCount,
 } from "../database/user-db";
-import { auth } from "@/auth";
 import { ObjectId } from "mongodb";
 import { processEmailsInBatches } from "./batchProcessor/batch-processor";
 import { queueEmails, getQueueStats } from "./email-queue";
@@ -261,7 +260,8 @@ export async function filterNewMessages(
  * Uses queue-based processing for large volumes to respect rate limits.
  */
 export async function generatePrecisForNewMessages(
-  messages: GmailMessage[]
+  messages: GmailMessage[],
+  userId: string
 ): Promise<{
   processedMessages: (GmailMessage & { precis: PrecisResult })[];
   errors: {
@@ -294,7 +294,7 @@ export async function generatePrecisForNewMessages(
       logger.info(
         `Small batch (${messages.length} emails), using direct processing`
       );
-      const batchResult = await processEmailsInBatches(messages);
+      const batchResult = await processEmailsInBatches(messages, userId);
 
       const processedErrors = batchResult.failed.map(
         ({ message, error, isRateLimit }) => ({
@@ -321,7 +321,7 @@ export async function generatePrecisForNewMessages(
     logger.info(
       `Large batch (${messages.length} emails), adding to processing queue`
     );
-    const queueResult = await queueEmails(messages);
+    const queueResult = await queueEmails(messages, userId);
     const stats = getQueueStats();
 
     if (loggingEnabled) {
@@ -357,12 +357,9 @@ function countTokens(content: string): number {
 async function generateAndSavePrecis(
   message: GmailMessage
 ): Promise<PrecisResult | null> {
-  const session = await auth();
-  if (!session || !session.user?.id) {
-    logger.error("Attempted précis generation without valid session.");
-    return null;
-  }
-  const emailOwner = session.user.id;
+  // TODO: This function is dead code and should be removed
+  // It's replaced by the version in batchProcessor/email-processor-service.ts
+  const emailOwner = "DEAD_CODE";
 
   if (loggingEnabled) {
     logger.info(`Starting précis for email: ${message.id}`);

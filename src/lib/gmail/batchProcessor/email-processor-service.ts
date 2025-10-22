@@ -1,7 +1,6 @@
 // src/lib/gmail/batchProcessor/email-processor-service.ts
 
 import { logger } from "@/utils/logger";
-import { auth } from "@/auth";
 import { GoogleGenAI } from "@google/genai";
 import { GmailMessage } from "../gmail-client";
 import { PrecisResult } from "../email-processor";
@@ -115,14 +114,9 @@ function formatGeminiApiError(error: Error): Error & ApiErrorDetails {
  * Generates précis for a single email, calls the Gemini API, and saves to DB.
  */
 export async function generateAndSavePrecis(
-  message: GmailMessage
+  message: GmailMessage,
+  emailOwner: string
 ): Promise<PrecisResult | null> {
-  const session = await auth();
-  if (!session || !session.user?.id) {
-    logger.error("Attempted précis generation without valid session.");
-    return null;
-  }
-  const emailOwner = session.user.id;
 
   logger.info(`Starting précis for email: ${message.id}`);
 
@@ -184,12 +178,12 @@ export async function generateAndSavePrecis(
  * Utility function for processBatchIndividually to handle the async result structure.
  * Returns a discriminated union type.
  */
-export async function processSingleEmail(message: GmailMessage): Promise<
+export async function processSingleEmail(message: GmailMessage, emailOwner: string): Promise<
   { success: true; message: GmailMessage; precis: PrecisResult } |
-  { success: false; message: GmailMessage; error: Error; isRateLimit: boolean; retryAfter?: number; quotaInfo?: QuotaInfo } 
+  { success: false; message: GmailMessage; error: Error; isRateLimit: boolean; retryAfter?: number; quotaInfo?: QuotaInfo }
 > {
   try {
-    const precis = await generateAndSavePrecis(message);
+    const precis = await generateAndSavePrecis(message, emailOwner);
     if (precis) {
       return { success: true, message, precis };
     }
