@@ -231,8 +231,8 @@ describe("GET /api/user/export - GDPR Data Export", () => {
 
   it("should return 401 if session is present but user ID is missing", async () => {
     // Create a custom error that mimics what validateUserSession throws
-    const customError = new Error("Unauthorized: Session or User ID is missing.");
-    (customError as any).status = 401;
+    const customError = new Error("Unauthorized: Session or User ID is missing.") as Error & { status: number };
+    customError.status = 401;
 
     setupMocks(
       { MONGODB_URI, ENCRYPTION_KEY, ENCRYPTION_IV, MONGO_CLIENT: COLLECTION_NAME },

@@ -91,9 +91,24 @@ if (missingVars.length > 0) {
 
 // --- Better Auth Configuration ---
 // Better Auth requires both the connected Db instance AND the MongoClient
-// We need to await the connection before initializing Better Auth
-const mongoClient = await clientPromise;
-const mongoDb = mongoClient.db(MONGODB_CLIENT_NAME);
+// During build time, we create a minimal stub to avoid database connection
+const isBuildTime = process.env.SKIP_DB_CONNECTION === 'true';
+
+let mongoClient: MongoClient;
+let mongoDb;
+
+if (!isBuildTime) {
+  mongoClient = await clientPromise;
+  mongoDb = mongoClient.db(MONGODB_CLIENT_NAME);
+} else {
+  // Create stub instances for build time
+  mongoClient = {
+    db: () => ({
+      collection: () => ({}),
+    }),
+  } as unknown as MongoClient;
+  mongoDb = {} as ReturnType<MongoClient['db']>;
+}
 
 export const auth = betterAuth({
   database: mongodbAdapter(mongoDb, {
