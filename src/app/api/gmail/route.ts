@@ -1,9 +1,10 @@
 // src/app/api/gmail/route.ts
 
 import { NextResponse, NextRequest } from "next/server";
-import { CustomError, handleApiError } from "@/utils/errorHandler";
+import { handleApiError } from "@/utils/errorHandler";
 import { logger } from "@/utils/logger";
-import { auth } from "@/auth";
+import { getGoogleAccessToken } from "@/lib/auth";
+import { validateUserSession } from "@/lib/session-helpers";
 // Import modularized components
 import {
   fetchMessagePage,
@@ -16,17 +17,6 @@ import {
 
 // set logging to true to enable logging for debugging
 const loggingEnabled = true;
-
-/**
- * Helper to validate user session and return session object.
- */
-async function validateUserSession() {
-  const session = await auth();
-  if (!session || !session.user?.id) {
-    throw new CustomError("Unauthorized: Session or User ID is missing.", 401);
-  }
-  return session;
-}
 
 /**
  * Interface for processed email data.
@@ -68,6 +58,7 @@ interface QueueStats {
  */
 async function getAndProcessGmailEmails(
   accessToken: string,
+  userId: string,
   pageSize = 100,
   pageToken?: string,
 ): Promise<{
@@ -97,7 +88,7 @@ async function getAndProcessGmailEmails(
 
     const newMessages = await filterNewMessages(messages); // 4. Generate precis, save to DB, and return the processed emails
 
-    const result = await generatePrecisForNewMessages(newMessages); // Map to ProcessedEmail shape
+    const result = await generatePrecisForNewMessages(newMessages, userId); // Map to ProcessedEmail shape
 
     const processedEmails: ProcessedEmail[] = result.processedMessages.map((msg) => ({
       id: msg.id,
@@ -137,7 +128,7 @@ async function getAndProcessGmailEmails(
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await validateUserSession(); // Use the user's MongoDB ObjectId as the ID
+    const session = await validateUserSession(req); // Use the user's MongoDB ObjectId as the ID
 
     const userId = session.user.id as string;
     if (loggingEnabled) {
@@ -149,27 +140,27 @@ export async function GET(req: NextRequest) {
       parseInt(searchParams.get("pageSize") || "100", 10),
       200,
     );
-    const pageToken = searchParams.get("pageToken") || undefined; // 🔑 FIX: Retrieve the token from the session, where it is plaintext.
+    const pageToken = searchParams.get("pageToken") || undefined; // 🔑 FIX: Retrieve the decrypted token from MongoDB
 
     if (loggingEnabled) {
       logger.info(
-        `Retrieving Google access token from session for user: ${userId}.`,
+        `Retrieving Google access token from database for user: ${userId}.`,
       );
     }
-    const idpAccessToken = session.googleAccessToken; // This holds the plaintext token
+    const idpAccessToken = await getGoogleAccessToken(userId); // This retrieves and decrypts the token
 
     if (loggingEnabled) {
       const tokenStatus = idpAccessToken
         ? "present (token length: " + idpAccessToken.length + ")"
         : "NULL/undefined";
       logger.info(
-        `[TOKEN_CHECK] Access token state from session: ${tokenStatus}`,
+        `[TOKEN_CHECK] Access token state from database: ${tokenStatus}`,
       );
     }
 
     if (!idpAccessToken) {
       logger.warn(
-        `Google access token not found in session for user: ${userId}.`,
+        `Google access token not found in database for user: ${userId}.`,
       );
       return NextResponse.json(
         { message: "Google access token not found. Please re-authenticate." },
@@ -187,6 +178,7 @@ export async function GET(req: NextRequest) {
     // This line is now correctly referencing the function defined above
     const result = await getAndProcessGmailEmails(
       idpAccessToken,
+      userId,
       pageSize,
       pageToken,
     );

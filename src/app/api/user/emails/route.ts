@@ -1,9 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from "mongodb"; // Import ObjectId for querying by _id
 import crypto from "crypto";
-
-// 🚨 NEW: Import the auth function from your Auth.js config
-import { auth } from "@/auth";
+import { validateUserSession } from "@/lib/session-helpers";
 
 if (!process.env.MONGODB_URI) {
   throw new Error("MONGODB_URI is not defined");
@@ -72,18 +70,11 @@ const client = new MongoClient(process.env.MONGODB_URI);
 const clientPromise = client.connect();
 const collectionName = process.env.MONGO_CLIENT ?? "";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    // 🚨 NextAuth Change: Use the new auth() function to get the session
-    const session = await auth();
+    const session = await validateUserSession(req);
 
-    // 🚨 NextAuth Change: Check for session existence and use session.user.id
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    // 🚨 NextAuth Change: Use the NextAuth User ID (MongoDB _id) as the owner identifier
-    // This assumes your email collection was updated to use the NextAuth user ID.
+    // Use the Better Auth User ID as the owner identifier
     const emailOwner = session.user.id;
 
     const clientConnection = await clientPromise;

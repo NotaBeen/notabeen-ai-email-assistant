@@ -1,9 +1,8 @@
 // src\app\api\user\route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 import crypto from "crypto";
-// 🚨 NEW: Import the auth function from your Auth.js config
-import { auth } from "@/auth";
+import { validateUserSession } from "@/lib/session-helpers";
 
 // --- Encryption/Decryption and MongoDB Setup (No Change) ---
 
@@ -60,17 +59,11 @@ const clientPromise = client.connect();
 
 // -------------------------------------------------------------
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    // 🚨 NextAuth Change: Use the new auth() function to get the session
-    const session = await auth(); // 🚨 NextAuth Change: Check for session existence.
+    const session = await validateUserSession(req);
 
-    if (!session || !session.user?.id) {
-      // Use ID for robust check
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    // Use the unencrypted NextAuth User ID for deterministic lookup
+    // Use the unencrypted Better Auth User ID for deterministic lookup
     const nextAuthUserId = session.user.id;
 
     const clientConnection = await clientPromise;
@@ -149,15 +142,9 @@ export async function GET() {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    // 🚨 NextAuth Change: Use the new auth() function
-    const session = await auth(); // 🚨 NextAuth Change: Check for session existence
-
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
+    const session = await validateUserSession(req);
     const nextAuthUserId = session.user.id;
 
     const clientConnection = await clientPromise;
@@ -224,15 +211,9 @@ export async function PATCH(req: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   try {
-    // 🚨 NextAuth Change: Use the new auth() function
-    const session = await auth(); // 🚨 NextAuth Change: Check for session existence
-
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
+    const session = await validateUserSession(req);
     const nextAuthUserId = session.user.id;
 
     const clientConnection = await clientPromise;
